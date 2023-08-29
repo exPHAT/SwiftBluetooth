@@ -15,6 +15,7 @@ class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     // MARK: - CBPeripheralDelegate conformance
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
+        parent.eventSubscriptions.recieve(.discoveredServices(parent.services ?? []))
         wrappedDelegate?.peripheral(parent, didDiscoverServices: error)
     }
 
@@ -23,6 +24,12 @@ class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?) {
+        // Save known characteristics for later usage by UUID
+        for characteristic in service.characteristics ?? [] {
+            parent.knownCharacteristics[characteristic.uuid] = characteristic
+        }
+
+        parent.eventSubscriptions.recieve(.discoveredCharacteristics(service.characteristics ?? []))
         wrappedDelegate?.peripheral(parent, didDiscoverCharacteristicsFor: service, error: error)
     }
 
@@ -32,9 +39,7 @@ class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         if let value = characteristic.value {
-            parent.responseMap.resolve(key: characteristic.uuid, withValue: value)
-        } else {
-            print("Got null value")
+            parent.responseMap.recieve(key: characteristic.uuid, withValue: value)
         }
 
         wrappedDelegate?.peripheral(parent, didUpdateValueFor: characteristic, error: error)
@@ -45,8 +50,7 @@ class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     }
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
-        parent.writeMap.resolve(key: characteristic.uuid, withValue: Void())
-        
+        parent.writeMap.recieve(key: characteristic.uuid, withValue: Void())
         wrappedDelegate?.peripheral(parent, didWriteValueFor: characteristic, error: error)
     }
 
