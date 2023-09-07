@@ -1,10 +1,3 @@
-//
-//  File.swift
-//  
-//
-//  Created by Aaron Taylor on 2023-08-28.
-//
-
 import Foundation
 import CoreBluetooth
 

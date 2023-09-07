@@ -7,7 +7,7 @@ public struct AsyncEventSubscription<Value>: Identifiable, Equatable {
     weak var parent: AsyncSubscriptionQueue<Value>?
     let completionHandler: (Value, DoneHandler) -> Void
 
-    internal func remove() {
+    internal func cancel() {
         parent?.remove(self)
     }
 

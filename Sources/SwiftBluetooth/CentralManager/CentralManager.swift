@@ -109,19 +109,19 @@ public extension CentralManager {
         }
     }
 
-    // TODO: Mark these as @available and have a non-returning version without an EventStream
-    @discardableResult // Traditionally this API will not return anything
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) -> AsyncStream<Peripheral> {
-        .init { cont in
-            let subscription = self.scanForPeripherals(withServices: services, options: options) { peripheral in
-                cont.yield(peripheral)
-            }
-
-            cont.onTermination = { _ in
-                subscription.remove()
-            }
-        }
-    }
+//    // TODO: Mark these as @available and have a non-returning version without an EventStream
+//    @discardableResult // Traditionally this API will not return anything
+//    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) -> AsyncStream<Peripheral> {
+//        .init { cont in
+//            let subscription = self.scanForPeripherals(withServices: services, options: options) { peripheral in
+//                cont.yield(peripheral)
+//            }
+//
+//            cont.onTermination = { _ in
+//                subscription.cancel()
+//            }
+//        }
+//    }
 }
 
 // MARK: - CBCentralManager methods
@@ -142,9 +142,9 @@ public extension CentralManager {
         centralManager.retrievePeripherals(withIdentifiers: identifiers).map(peripheral(_:))
     }
 
-//    func scanForPeripherals(withServices services: [CBUUID]?, options: [String: Any]? = nil) {
-//        centralManager.scanForPeripherals(withServices: services, options: options)
-//    }
+    func scanForPeripherals(withServices services: [CBUUID]?, options: [String: Any]? = nil) {
+        centralManager.scanForPeripherals(withServices: services, options: options)
+    }
 
     func stopScan() {
         centralManager.stopScan()

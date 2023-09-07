@@ -6,6 +6,19 @@ enum PeripheralEvent {
     case discoveredCharacteristics([CBCharacteristic])
 }
 
+@dynamicMemberLookup
+public struct StaticCharacteristics {
+    var parent: Peripheral
+
+    public subscript(dynamicMember keyPath: KeyPath<Characteristic.Type, Characteristic>) -> CBCharacteristic {
+        get {
+            let characteristic = Characteristic.self[keyPath: keyPath]
+
+            return parent.knownCharacteristics[characteristic.uuid]!
+        }
+    }
+}
+
 public class Peripheral: NSObject {
     private(set) var cbPeripheral: CBPeripheral
     private lazy var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
@@ -15,6 +28,8 @@ public class Peripheral: NSObject {
     internal var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>()
 
     internal var knownCharacteristics: [CBUUID: CBCharacteristic] = [:]
+
+    public lazy var characteristics = StaticCharacteristics(parent: self)
 
     // MARK: - CBPeripheral properties
     public var name: String? { cbPeripheral.name }
@@ -58,18 +73,23 @@ public extension Peripheral {
         }
 
         setNotifyValue(true, for: characteristic)
-        readValue(for: characteristic)
 
         return subscription
     }
 
-    func writeValue(_ data: Data, for characteristic: CBCharacteristic, completionHandler: @escaping () -> Void) {
-        writeMap.queue(key: characteristic.uuid) { _, done in
-            completionHandler()
-            done()
+    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping () -> Void) {
+        if type == .withResponse {
+            writeMap.queue(key: characteristic.uuid) { _, done in
+                completionHandler()
+                done()
+            }
         }
 
-        writeValue(data, for: characteristic, type: .withResponse)
+        writeValue(data, for: characteristic, type: type)
+
+        if type == .withoutResponse {
+            completionHandler()
+        }
     }
 
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping ([CBService]) -> Void) {
@@ -93,6 +113,19 @@ public extension Peripheral {
 
         discoverCharacteristics(characteristicUUIDs, for: service)
     }
+
+    func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {
+        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+
+        setNotifyValue(value, for: mappedCharacteristic)
+    }
+
+    func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) {
+        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+
+        writeValue(data, for: mappedCharacteristic, type: type)
+    }
+
 }
 
 // Async methods
@@ -118,7 +151,7 @@ public extension Peripheral {
             }
 
             cont.onTermination = { _ in
-                subscription.remove()
+                subscription.cancel()
             }
         }
     }
@@ -129,18 +162,18 @@ public extension Peripheral {
         return readValues(for: mappedCharacteristic)
     }
 
-    func writeValue(_ data: Data, for characteristic: CBCharacteristic) async {
+    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) async {
         await withCheckedContinuation { cont in
-            self.writeValue(data, for: characteristic) {
+            self.writeValue(data, for: characteristic, type: type) {
                 cont.resume()
             }
         }
     }
 
-    func writeValue(_ data: Data, for characteristic: Characteristic) async {
+    func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) async {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 
-        return await writeValue(data, for: mappedCharacteristic)
+        return await writeValue(data, for: mappedCharacteristic, type: type)
     }
 
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil) async -> [CBService] {
