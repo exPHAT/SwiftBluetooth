@@ -10,34 +10,75 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 
 ## Features
 
-- [x] Modern, async API for reading/writing characteristic values
-- [x] Method and delegate parity with existing `CoreBluetooth` API's
-- [x] Fallback callback-based completion handlers for new async methods
-- [x] Subscribe to peripheral/characteristic updates through `AsyncStream`
-- [x] Async peripheral discovery
+- [x] Parity with existing `CoreBluetooth` APIs for easy, incremental migration of existing projects
+- [x] Modern, async-await API for peripheral discovery, connection, read/write, etc
+- [x] Alternate callback-based API for codebases not using Swift Cocurrency
+- [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
+- [x] Easy await-ing of `CentralManager` state
+- [x] Static-typing for characteristics
 - [x] Thread safe
-- [x] Staticly-typed characteristic definitions
 - [ ] SwiftUI API
 
-## Usage 
+## Examples
 
 [API Documentation.](https://swiftpackageindex.com/exPHAT/SwiftBluetooth/1.0.0/documentation/)
 
-The following example connects to the first perpheral it sees and reads the value of a known characteristic (in just 8 lines!).
+
+#### Migrate existing project
+
+```swift
+import CoreBluetooth
+import SwiftBluetooth // Add this
+
+// Override existing CoreBluetooth classes to use SwiftBluetooth
+typealias CBCentralManager = SwiftBluetooth.CentralManager
+typealias CBCentralManagerDelegate = SwiftBluetooth.CentralManagerDelegate
+
+typealias CBPeripheral = SwiftBluetooth.Peripheral
+typealias CBPeripheralDelegate = SwiftBluetooth.PeripheralDelegate
+
+// Your existing codebase should work as normal, while letting you use all of SwiftBluetooth's new API's!
+```
+
+#### Stream discovered peripherals
 
 ```swift
 let central = CentralManager()
 await central.waitUntilReady()
 
-guard let device = await central.scanForPeripherals(withServices: [myService]).first else { return }
-await central.connect(device)
-defer { central.cancelPeripheralConnection(device) }
-
-guard let service = await device.discoverServices([myService]).first(where: { $0.uuid == myService }) else { return }
-let _ = await device.discoverCharacteristics([.someCharacteristic], for: service)
-
-print("Got value:", await device.readValue(for: .someCharacteristic))
+for await peripheral in central.scanForPeripherals() {
+  print("Discovered peripheral:", peripheral.name ?? "Unknown")
+}
 ```
+
+#### Define characteristics
+
+```swift
+// Define your characteristic UUID's as static members of the `Characteristic` type
+extension Characteristic {
+  static let someCharacteristic = Self("00000000-0000-0000-0000-000000000000")
+}
+
+// Use those characteristics later on your peripheral
+await myPeripheral.readValue(for: .someCharacteristic)
+```
+
+#### Discover, connect, and read characteristic
+
+```swift
+let central = CentralManager()
+await central.waitUntilReady()
+
+guard let peripheral = await central.scanForPeripherals(withServices: [myService]).first else { return }
+await central.connect(peripheral)
+defer { central.cancelPeripheralConnection(peripheral) }
+
+guard let service = await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService }) else { return }
+let _ = await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
+
+print("Got value:", await peripheral.readValue(for: .someCharacteristic))
+```
+
 
 ## Install
 
