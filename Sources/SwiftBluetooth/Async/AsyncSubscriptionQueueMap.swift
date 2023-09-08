@@ -1,6 +1,6 @@
 import Foundation
 
-public class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
+internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
     private var items: [Key: AsyncSubscriptionQueue<Value>] = [:]
 
     private let dispatchQueue = DispatchQueue(label: "async-subscription-queue-map")

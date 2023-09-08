@@ -5,8 +5,12 @@ public enum CentralEvent {
     case stateUpdated(CBManagerState)
     case discovered(Peripheral, [String: Any], NSNumber)
     case connected(Peripheral)
-    case disconnected(Peripheral)
-    case failToConnect(Peripheral)
+    case disconnected(Peripheral, Error?)
+    case failToConnect(Peripheral, Error?)
+}
+
+public enum CentralError: Error {
+    case unknown
 }
 
 public class CentralManager: NSObject {
@@ -20,6 +24,8 @@ public class CentralManager: NSObject {
     public var delegate: CentralManagerDelegate? // Accessed from wrappedDelegate directly
     public var state: CBManagerState { centralManager.state }
     public var isScanning: Bool { centralManager.isScanning }
+
+    @available(iOS, deprecated: 13.1)
     public var authorization: CBManagerAuthorization { centralManager.authorization }
 
 
@@ -65,20 +71,29 @@ public extension CentralManager {
         }
     }
 
-    func connect(_ peripheral: Peripheral, options: [String: Any]? = nil, completionHandler: @escaping () -> Void) {
+    func connect(_ peripheral: Peripheral, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) {
         eventSubscriptions.queue { event, done in
-            if case .connected(let connectedPeripheral) = event,
-               connectedPeripheral.cbPeripheral == peripheral.cbPeripheral {
-
-                completionHandler()
-                done()
+            switch event {
+            case .connected(let connected):
+                guard connected == peripheral else { return }
+                completionHandler(.success(peripheral))
+            case .disconnected(let disconnected, let error):
+                guard disconnected == peripheral else { return }
+                completionHandler(.failure(error ?? CentralError.unknown))
+            case .failToConnect(let failed, let error):
+                guard failed == peripheral else { return }
+                completionHandler(.failure(error ?? CentralError.unknown))
+            default:
+                return
             }
+
+            done()
         }
 
         connect(peripheral, options: options)
     }
 
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> AsyncEventSubscription<CentralEvent> {
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
         let subscription = eventSubscriptions.queue { event, _ in
             if case .discovered(let peripheral, _, _) = event {
                 onPeripheralFound(peripheral)
@@ -101,27 +116,33 @@ public extension CentralManager {
         }
     }
 
-    func connect(_ peripheral: Peripheral, options: [String: Any]? = nil) async {
-        await withCheckedContinuation { cont in
-            self.connect(peripheral, options: options) {
-                cont.resume()
+    @discardableResult
+    func connect(_ peripheral: Peripheral, options: [String: Any]? = nil) async throws -> Peripheral {
+        try await withCheckedThrowingContinuation { cont in
+            self.connect(peripheral, options: options) { result in
+                switch result {
+                case .success(let peripheral):
+                    cont.resume(returning: peripheral)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
             }
         }
     }
 
 //    // TODO: Mark these as @available and have a non-returning version without an EventStream
-//    @discardableResult // Traditionally this API will not return anything
-//    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) -> AsyncStream<Peripheral> {
-//        .init { cont in
-//            let subscription = self.scanForPeripherals(withServices: services, options: options) { peripheral in
-//                cont.yield(peripheral)
-//            }
-//
-//            cont.onTermination = { _ in
-//                subscription.cancel()
-//            }
-//        }
-//    }
+    @discardableResult // Traditionally this API will not return anything
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) -> AsyncStream<Peripheral> {
+        .init { cont in
+            let subscription = self.scanForPeripherals(withServices: services, options: options) { peripheral in
+                cont.yield(peripheral)
+            }
+
+            cont.onTermination = { _ in
+                subscription.cancel()
+            }
+        }
+    }
 }
 
 // MARK: - CBCentralManager methods
@@ -142,9 +163,9 @@ public extension CentralManager {
         centralManager.retrievePeripherals(withIdentifiers: identifiers).map(peripheral(_:))
     }
 
-    func scanForPeripherals(withServices services: [CBUUID]?, options: [String: Any]? = nil) {
-        centralManager.scanForPeripherals(withServices: services, options: options)
-    }
+//    func scanForPeripherals(withServices services: [CBUUID]?, options: [String: Any]? = nil) {
+//        centralManager.scanForPeripherals(withServices: services, options: options)
+//    }
 
     func stopScan() {
         centralManager.stopScan()

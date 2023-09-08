@@ -25,12 +25,12 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        parent.eventSubscriptions.recieve(.disconnected(parent.peripheral(peripheral)))
+        parent.eventSubscriptions.recieve(.disconnected(parent.peripheral(peripheral), error))
         wrappedDelegate?.centralManager(parent, didDisconnectPeripheral: parent.peripheral(peripheral), error: error)
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        parent.eventSubscriptions.recieve(.failToConnect(parent.peripheral(peripheral)))
+        parent.eventSubscriptions.recieve(.failToConnect(parent.peripheral(peripheral), error))
         wrappedDelegate?.centralManager(parent, didFailToConnect: parent.peripheral(peripheral), error: error)
     }
 

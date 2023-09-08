@@ -1,6 +1,6 @@
 import Foundation
 
-public class AsyncSubscriptionQueue<Value> {
+internal final class AsyncSubscriptionQueue<Value> {
     private var items: [AsyncEventSubscription<Value>] = []
 
     private lazy var dispatchQueue = DispatchQueue(label: "async-subscription-queue")

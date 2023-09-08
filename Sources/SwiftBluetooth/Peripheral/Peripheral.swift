@@ -2,8 +2,8 @@ import Foundation
 import CoreBluetooth
 
 enum PeripheralEvent {
-    case discoveredServices([CBService])
-    case discoveredCharacteristics([CBCharacteristic])
+    case discoveredServices([CBService], Error?)
+    case discoveredCharacteristics([CBCharacteristic], Error?)
 }
 
 @dynamicMemberLookup
@@ -67,7 +67,7 @@ public extension Peripheral {
         readValue(for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
-    func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> AsyncEventSubscription<Data> {
+    func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> CancellableTask {
         let subscription = responseMap.queue(key: characteristic.uuid) { data, _ in
             onValueUpdate(data)
         }
@@ -92,10 +92,15 @@ public extension Peripheral {
         }
     }
 
-    func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping ([CBService]) -> Void) {
+    func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping (Result<[CBService], Error>) -> Void) {
         eventSubscriptions.queue { event, done in
-            if case .discoveredServices(let services) = event {
-                completionHandler(services)
+            if case .discoveredServices(let services, let error) = event {
+                if let error {
+                    completionHandler(.failure(error))
+                    return
+                }
+
+                completionHandler(.success(services))
                 done()
             }
         }
@@ -103,10 +108,15 @@ public extension Peripheral {
         discoverServices(serviceUUIDs)
     }
 
-    func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping ([CBCharacteristic]) -> Void) {
+    func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
         eventSubscriptions.queue { event, done in
-            if case .discoveredCharacteristics(let characteristics) = event {
-                completionHandler(characteristics)
+            if case .discoveredCharacteristics(let characteristics, let error) = event {
+                if let error {
+                    completionHandler(.failure(error))
+                    return
+                }
+
+                completionHandler(.success(characteristics))
                 done()
             }
         }
@@ -176,18 +186,28 @@ public extension Peripheral {
         return await writeValue(data, for: mappedCharacteristic, type: type)
     }
 
-    func discoverServices(_ serviceUUIDs: [CBUUID]? = nil) async -> [CBService] {
-        await withCheckedContinuation { cont in
-            self.discoverServices(serviceUUIDs) { services in
-                cont.resume(returning: services)
+    func discoverServices(_ serviceUUIDs: [CBUUID]? = nil) async throws -> [CBService] {
+        try await withCheckedThrowingContinuation { cont in
+            self.discoverServices(serviceUUIDs) { result in
+                switch result {
+                case .success(let services):
+                    cont.resume(returning: services)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
             }
         }
     }
 
-    func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async -> [CBCharacteristic] {
-        await withCheckedContinuation { cont in
-            self.discoverCharacteristics(characteristicUUIDs, for: service) { characteristics in
-                cont.resume(returning: characteristics)
+    func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async throws -> [CBCharacteristic] {
+        try await withCheckedThrowingContinuation { cont in
+            self.discoverCharacteristics(characteristicUUIDs, for: service) { result in
+                switch result {
+                case .success(let characteristics):
+                    cont.resume(returning: characteristics)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
             }
         }
     }

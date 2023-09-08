@@ -15,7 +15,7 @@ class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     // MARK: - CBPeripheralDelegate conformance
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
-        parent.eventSubscriptions.recieve(.discoveredServices(parent.services ?? []))
+        parent.eventSubscriptions.recieve(.discoveredServices(parent.services ?? [], error))
         wrappedDelegate?.peripheral(parent, didDiscoverServices: error)
     }
 
@@ -29,7 +29,7 @@ class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
             parent.knownCharacteristics[characteristic.uuid] = characteristic
         }
 
-        parent.eventSubscriptions.recieve(.discoveredCharacteristics(service.characteristics ?? []))
+        parent.eventSubscriptions.recieve(.discoveredCharacteristics(service.characteristics ?? [], error))
         wrappedDelegate?.peripheral(parent, didDiscoverCharacteristicsFor: service, error: error)
     }
 
