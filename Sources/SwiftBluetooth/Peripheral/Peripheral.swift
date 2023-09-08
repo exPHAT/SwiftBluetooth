@@ -124,6 +124,16 @@ public extension Peripheral {
         discoverCharacteristics(characteristicUUIDs, for: service)
     }
 
+    func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
+        let mappedUUIDs = characteristics.map {
+            guard let characteristic = knownCharacteristics[$0.uuid] else { fatalError("Characteristic \($0.uuid) not found.") }
+
+            return characteristic.uuid
+        }
+
+        discoverCharacteristics(mappedUUIDs, for: service, completionHandler: completionHandler)
+    }
+
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 
@@ -202,6 +212,19 @@ public extension Peripheral {
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async throws -> [CBCharacteristic] {
         try await withCheckedThrowingContinuation { cont in
             self.discoverCharacteristics(characteristicUUIDs, for: service) { result in
+                switch result {
+                case .success(let characteristics):
+                    cont.resume(returning: characteristics)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService) async throws -> [CBCharacteristic] {
+        try await withCheckedThrowingContinuation { cont in
+            self.discoverCharacteristics(characteristics, for: service) { result in
                 switch result {
                 case .success(let characteristics):
                     cont.resume(returning: characteristics)

@@ -69,13 +69,16 @@ await myPeripheral.readValue(for: .someCharacteristic)
 let central = CentralManager()
 await central.waitUntilReady()
 
+// Find and connect to the first peripheral
 guard let peripheral = await central.scanForPeripherals(withServices: [myService]).first else { return }
 await central.connect(peripheral)
 defer { central.cancelPeripheralConnection(peripheral) }
 
+// Discover services and characteristics
 guard let service = await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService }) else { return }
 let _ = await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
 
+// Read characteristic value!
 print("Got value:", await peripheral.readValue(for: .someCharacteristic))
 ```
 
