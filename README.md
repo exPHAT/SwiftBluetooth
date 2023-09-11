@@ -17,6 +17,7 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 - [x] Easy await-ing of `CentralManager` state
 - [x] Static-typing for characteristics
 - [x] Thread safe
+- [x] Zero dependencies
 - [ ] SwiftUI API
 
 ## Examples
@@ -24,7 +25,7 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 [API Documentation.](https://swiftpackageindex.com/exPHAT/SwiftBluetooth/1.0.0/documentation/)
 
 
-#### Migrate existing project
+#### Migrate existing CoreBluetooth project
 
 ```swift
 import CoreBluetooth
@@ -85,6 +86,10 @@ print("Got value:", await peripheral.readValue(for: .someCharacteristic))
 
 ## Install
 
+#### Xcode
+
+Add `https://github.com/exPHAT/SwiftBluetooth.git` in the ["Swift Package Manager" tab.](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app)
+
 
 #### Swift Package Manager
 
@@ -106,8 +111,3 @@ let package = Package(
   ...
 )
 ```
-
-#### Xcode
-
-Add `https://github.com/exPHAT/SwiftBluetooth.git` in the ["Swift Package Manager" tab.](https://developer.apple.com/documentation/xcode/adding-package-dependencies-to-your-app)
-
