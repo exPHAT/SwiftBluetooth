@@ -1,7 +1,7 @@
 import Foundation
 
 // https://stackoverflow.com/a/57075142
-extension DispatchQueue {
+internal extension DispatchQueue {
     private static let idKey = DispatchSpecificKey<Int>()
 
     var id: Int {
