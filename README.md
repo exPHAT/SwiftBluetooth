@@ -12,13 +12,13 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 
 - [x] Parity with existing `CoreBluetooth` APIs for easy, incremental migration of existing projects
 - [x] Modern, async-await API for peripheral discovery, connection, read/write, etc
-- [x] Alternate callback-based API for codebases not using Swift Cocurrency
+- [x] Alternate callback-based API for codebases not using Swift Concurrency
 - [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
-- [x] Easy await-ing of `CentralManager` state
-- [x] Static-typing for characteristics
-- [x] Thread safe
+- [x] Easy `await`-ing of `CentralManager` state
+- [x] Staticly typed characteristics
 - [x] Zero dependencies
-- [ ] SwiftUI API
+- [x] Thread safe
+- [ ] SwiftUI support
 
 ## Examples
 
@@ -38,7 +38,8 @@ typealias CBCentralManagerDelegate = SwiftBluetooth.CentralManagerDelegate
 typealias CBPeripheral = SwiftBluetooth.Peripheral
 typealias CBPeripheralDelegate = SwiftBluetooth.PeripheralDelegate
 
-// Your existing codebase should work as normal, while letting you use all of SwiftBluetooth's new API's!
+// Your existing code should continue to work as normal.
+// But now you have access to all the new API's!
 ```
 
 #### Stream discovered peripherals
