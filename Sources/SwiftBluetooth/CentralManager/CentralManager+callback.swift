@@ -36,10 +36,22 @@ public extension CentralManager {
     }
 
     func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
-        let subscription = eventSubscriptions.queue { event, _ in
-            if case .discovered(let peripheral, _, _) = event {
+        let subscription = eventSubscriptions.queue { event, done in
+            switch event {
+            case .discovered(let peripheral, _, _):
                 onPeripheralFound(peripheral)
+            case .stopScan:
+                done()
+            default:
+                break
             }
+        } completion: { [weak self] in
+            guard let self else { return }
+
+//            Needs to only be called when `done()` is called as a cancellation, not a completion.
+//            Maybe can also repurpose the idea of calling `done` as always being a completion?...
+//
+//            self.centralManager.stopScan()
         }
 
         centralManager.scanForPeripherals(withServices: services, options: options)

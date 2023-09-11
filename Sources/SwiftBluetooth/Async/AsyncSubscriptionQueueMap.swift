@@ -3,10 +3,11 @@ import Foundation
 internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
     private var items: [Key: AsyncSubscriptionQueue<Value>] = [:]
 
+    // TODO: Convert these to just use a lock
     private let dispatchQueue = DispatchQueue(label: "async-subscription-queue-map")
 
     @discardableResult
-    func queue(key: Key, completionHandler: @escaping (Value, () -> Void) -> Void) -> AsyncSubscription<Value> {
+    func queue(key: Key, block: @escaping (Value, () -> Void) -> Void, completion: (() -> Void)? = nil) -> AsyncSubscription<Value> {
         var item: AsyncSubscriptionQueue<Value>?
 
         dispatchQueue.safeSync {
@@ -18,10 +19,10 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
                 items[key] = .init()
             }
 
-            return queue(key: key, completionHandler: completionHandler)
+            return queue(key: key, block: block, completion: completion)
         }
 
-        return item.queue(completionHandler: completionHandler)
+        return item.queue(block: block, completion: completion)
     }
 
     func recieve(key: Key, withValue value: Value) {

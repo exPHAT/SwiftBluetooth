@@ -3,11 +3,12 @@ import Foundation
 internal final class AsyncSubscriptionQueue<Value> {
     private var items: [AsyncSubscription<Value>] = []
 
+    // TODO: Convert these to just use a lock
     private lazy var dispatchQueue = DispatchQueue(label: "async-subscription-queue")
 
     @discardableResult
-    func queue(completionHandler: @escaping (Value, () -> Void) -> Void) -> AsyncSubscription<Value> {
-        let item = AsyncSubscription(parent: self, completionHandler: completionHandler)
+    func queue(block: @escaping (Value, () -> Void) -> Void, completion: (() -> Void)? = nil) -> AsyncSubscription<Value> {
+        let item = AsyncSubscription(parent: self, block: block, completion: completion)
 
         dispatchQueue.async {
             self.items.append(item)
@@ -19,13 +20,7 @@ internal final class AsyncSubscriptionQueue<Value> {
     func recieve(_ value: Value) {
         dispatchQueue.async {
             for item in self.items.reversed() {
-                let doneHandler: () -> Void = {
-                    self.remove(item)
-                }
-
-//                DispatchQueue.main.async {
-                    item.completionHandler(value, doneHandler)
-//                }
+                item.block(value, item.cancel)
             }
         }
     }

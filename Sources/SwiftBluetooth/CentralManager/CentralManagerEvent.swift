@@ -7,4 +7,5 @@ internal enum CentralManagerEvent {
     case connected(Peripheral)
     case disconnected(Peripheral, Error?)
     case failToConnect(Peripheral, Error?)
+    case stopScan
 }

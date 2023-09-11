@@ -20,9 +20,18 @@ public extension Peripheral {
     func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> CancellableTask {
         let subscription = responseMap.queue(key: characteristic.uuid) { data, _ in
             onValueUpdate(data)
+        } completion: { [weak self] in
+            guard let self else { return }
+
+            let shouldNotify = self.notifyingState.removeInternal(forKey: characteristic.uuid)
+
+            // We should only stop notifying when we have no internal handlers waiting on it
+            // and the last external `setNotifyValue` was set to false
+            self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
         }
 
-        setNotifyValue(true, for: characteristic)
+        notifyingState.addInternal(forKey: characteristic.uuid)
+        cbPeripheral.setNotifyValue(true, for: characteristic)
 
         return subscription
     }
@@ -95,5 +104,4 @@ public extension Peripheral {
 
         writeValue(data, for: mappedCharacteristic, type: type)
     }
-
 }

@@ -11,6 +11,8 @@ public class Peripheral: NSObject {
 
     internal var knownCharacteristics: [CBUUID: CBCharacteristic] = [:]
 
+    internal var notifyingState = NotifyingTracker<CBUUID>()
+
     // MARK: - CBPeripheral properties
     public var name: String? { cbPeripheral.name }
     public var identifier: UUID { cbPeripheral.identifier }
@@ -69,10 +71,10 @@ public extension Peripheral {
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) {
-        // TODO: Set notify true when stream requested
-        // Maybe store next pending notify value for when stream completed
+        // Keep track of if the user wants notifying values outside of our subscriptions
+        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
 
-        cbPeripheral.setNotifyValue(value, for: characteristic)
+        cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
     }
 
     func readRSSI() {
