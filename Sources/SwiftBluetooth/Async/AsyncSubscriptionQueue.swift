@@ -1,13 +1,13 @@
 import Foundation
 
 internal final class AsyncSubscriptionQueue<Value> {
-    private var items: [AsyncEventSubscription<Value>] = []
+    private var items: [AsyncSubscription<Value>] = []
 
     private lazy var dispatchQueue = DispatchQueue(label: "async-subscription-queue")
 
     @discardableResult
-    func queue(completionHandler: @escaping (Value, DoneHandler) -> Void) -> AsyncEventSubscription<Value> {
-        let item = AsyncEventSubscription(parent: self, completionHandler: completionHandler)
+    func queue(completionHandler: @escaping (Value, () -> Void) -> Void) -> AsyncSubscription<Value> {
+        let item = AsyncSubscription(parent: self, completionHandler: completionHandler)
 
         dispatchQueue.async {
             self.items.append(item)
@@ -30,7 +30,7 @@ internal final class AsyncSubscriptionQueue<Value> {
         }
     }
 
-    func remove(_ item: AsyncEventSubscription<Value>) {
+    func remove(_ item: AsyncSubscription<Value>) {
         dispatchQueue.safeSync {
             self.items.removeAll(where: { $0 == item })
         }

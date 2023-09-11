@@ -6,7 +6,7 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
     private let dispatchQueue = DispatchQueue(label: "async-subscription-queue-map")
 
     @discardableResult
-    func queue(key: Key, completionHandler: @escaping (Value, DoneHandler) -> Void) -> AsyncEventSubscription<Value> {
+    func queue(key: Key, completionHandler: @escaping (Value, () -> Void) -> Void) -> AsyncSubscription<Value> {
         var item: AsyncSubscriptionQueue<Value>?
 
         dispatchQueue.safeSync {

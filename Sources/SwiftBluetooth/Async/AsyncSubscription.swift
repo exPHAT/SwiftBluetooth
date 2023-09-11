@@ -1,11 +1,9 @@
 import Foundation
 
-public typealias DoneHandler = () -> Void
-
-internal struct AsyncEventSubscription<Value>: Identifiable, Equatable, CancellableTask {
+internal struct AsyncSubscription<Value>: Identifiable, Equatable, CancellableTask {
     public let id = UUID()
     weak var parent: AsyncSubscriptionQueue<Value>?
-    let completionHandler: (Value, DoneHandler) -> Void
+    let completionHandler: (Value, () -> Void) -> Void
 
     public func cancel() {
         parent?.remove(self)
