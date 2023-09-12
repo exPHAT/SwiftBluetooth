@@ -120,13 +120,7 @@ public extension Peripheral {
     }
 
     func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
-        let mappedUUIDs = characteristics.map {
-            guard let characteristic = knownCharacteristics[$0.uuid] else { fatalError("Characteristic \($0.uuid) not found.") }
-
-            return characteristic.uuid
-        }
-
-        discoverCharacteristics(mappedUUIDs, for: service, completionHandler: completionHandler)
+        discoverCharacteristics(characteristics.map(\.uuid), for: service, completionHandler: completionHandler)
     }
 
     func discoverDescriptors(for characteristic: Characteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) {
