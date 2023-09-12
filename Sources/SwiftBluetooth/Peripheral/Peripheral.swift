@@ -20,7 +20,10 @@ public class Peripheral: NSObject {
     public var services: [CBService]? { cbPeripheral.services }
     public var state: CBPeripheralState { cbPeripheral.state }
     public var canSendWriteWithoutResponse: Bool { cbPeripheral.canSendWriteWithoutResponse }
+
+    #if os(iOS)
     public var acnsAuthorized: Bool { cbPeripheral.ancsAuthorized }
+    #endif
 
     public var delegate: PeripheralDelegate?
 
