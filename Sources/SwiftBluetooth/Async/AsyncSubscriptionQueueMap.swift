@@ -14,7 +14,7 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
             item = items[key]
         }
 
-        guard let item else {
+        guard let item = item else {
             dispatchQueue.safeSync {
                 items[key] = .init()
             }

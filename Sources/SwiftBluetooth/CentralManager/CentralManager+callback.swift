@@ -46,7 +46,7 @@ public extension CentralManager {
                 break
             }
         } completion: { [weak self] in
-            guard let self else { return }
+            guard let self = self else { return }
 
 //            Needs to only be called when `done()` is called as a cancellation, not a completion.
 //            Maybe can also repurpose the idea of calling `done` as always being a completion?...

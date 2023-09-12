@@ -30,7 +30,7 @@ public extension Peripheral {
         let subscription = responseMap.queue(key: characteristic.uuid) { data, _ in
             onValueUpdate(data)
         } completion: { [weak self] in
-            guard let self else { return }
+            guard let self = self else { return }
 
             let shouldNotify = self.notifyingState.removeInternal(forKey: characteristic.uuid)
 
@@ -74,7 +74,7 @@ public extension Peripheral {
             guard case .discoveredServices(let services, let error) = event else { return }
             defer { done() }
 
-            if let error {
+            if let error = error {
                 completionHandler(.failure(error))
                 return
             }
@@ -91,7 +91,7 @@ public extension Peripheral {
                   forService.uuid == service.uuid else { return }
             defer { done() }
 
-            if let error {
+            if let error = error {
                 completionHandler(.failure(error))
                 return
             }
@@ -108,7 +108,7 @@ public extension Peripheral {
                   forCharacteristic.uuid == characteristic.uuid else { return }
             defer { done() }
 
-            if let error {
+            if let error = error {
                 completionHandler(.failure(error))
                 return
             }
@@ -167,7 +167,7 @@ public extension Peripheral {
             guard case .didOpenL2CAPChannel(let channel, let error) = event else { return }
             defer { done() }
 
-            if let error {
+            if let error = error {
                 completionHandler(.failure(error))
             } else if let channel {
                 completionHandler(.success(channel))
