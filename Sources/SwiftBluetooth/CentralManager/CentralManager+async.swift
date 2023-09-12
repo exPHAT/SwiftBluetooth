@@ -28,7 +28,7 @@ public extension CentralManager {
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     @discardableResult // Traditionally this API will not return anything
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) -> AsyncStream<Peripheral> {
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) async -> AsyncStream<Peripheral> {
         .init { cont in
             let subscription = self.scanForPeripherals(withServices: services, options: options) { peripheral in
                 cont.yield(peripheral)

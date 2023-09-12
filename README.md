@@ -47,7 +47,7 @@ typealias CBPeripheralDelegate     = SwiftBluetooth.PeripheralDelegate
 let central = CentralManager()
 await central.waitUntilReady()
 
-for await peripheral in central.scanForPeripherals() {
+for await peripheral in await central.scanForPeripherals() {
   print("Discovered:", peripheral.name ?? "Unknown")
 }
 ```

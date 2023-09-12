@@ -63,9 +63,9 @@ public extension CentralManager {
         centralManager.retrievePeripherals(withIdentifiers: identifiers).map(peripheral(_:))
     }
 
-//    func scanForPeripherals(withServices services: [CBUUID]?, options: [String: Any]? = nil) {
-//        centralManager.scanForPeripherals(withServices: services, options: options)
-//    }
+    func scanForPeripherals(withServices services: [CBUUID]?, options: [String: Any]? = nil) {
+        centralManager.scanForPeripherals(withServices: services, options: options)
+    }
 
     func stopScan() {
         centralManager.stopScan()
