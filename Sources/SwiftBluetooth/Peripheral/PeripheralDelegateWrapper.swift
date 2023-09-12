@@ -71,6 +71,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
         guard let parent else { return }
+        parent.eventSubscriptions.recieve(.readRSSI(RSSI, error))
         parent.delegate?.peripheral(parent, didReadRSSI: RSSI, error: error)
     }
 
@@ -82,5 +83,10 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     func peripheralDidUpdateName(_ peripheral: CBPeripheral) {
         guard let parent else { return }
         parent.delegate?.peripheralDidUpdateName(parent)
+    }
+
+    func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: Error?) {
+        guard let parent else { return }
+        parent.delegate?.peripheral(parent, didOpen: channel, error: error)
     }
 }

@@ -13,10 +13,9 @@ public protocol PeripheralDelegate {
     func peripheral(_ peripheral: Peripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?)
     func peripheral(_ peripheral: Peripheral, didReadRSSI RSSI: NSNumber, error: Error?)
     func peripheral(_ peripheral: Peripheral, didModifyServices services: [CBService])
+    func peripheral(_ peripheral: Peripheral, didOpen channel: CBL2CAPChannel?, error: Error?)
 
     func peripheralDidUpdateName(_ peripheral: Peripheral)
-
-    // TODO: L2CAP
 }
 
 // Default values
@@ -32,6 +31,7 @@ public extension PeripheralDelegate {
     func peripheral(_ peripheral: Peripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) { }
     func peripheral(_ peripheral: Peripheral, didReadRSSI RSSI: NSNumber, error: Error?) { }
     func peripheral(_ peripheral: Peripheral, didModifyServices services: [CBService]) { }
+    func peripheral(_ peripheral: Peripheral, didOpen channel: CBL2CAPChannel?, error: Error?) { }
 
     func peripheralDidUpdateName(_ peripheral: Peripheral) { }
 }

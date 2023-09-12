@@ -19,7 +19,7 @@ public class Peripheral: NSObject {
     public var services: [CBService]? { cbPeripheral.services }
     public var state: CBPeripheralState { cbPeripheral.state }
     public var canSendWriteWithoutResponse: Bool { cbPeripheral.canSendWriteWithoutResponse }
-//    var rssi: NSNumber? { cbPeripheral.rssi }
+    public var acnsAuthorized: Bool { cbPeripheral.ancsAuthorized }
 
     public var delegate: PeripheralDelegate?
 
@@ -81,5 +81,7 @@ public extension Peripheral {
         cbPeripheral.readRSSI()
     }
 
-    // TODO: Do L2CAPChannel/ACNS stuff
+    func openL2CAPChannel(_ PSM: CBL2CAPPSM) {
+        cbPeripheral.openL2CAPChannel(PSM)
+    }
 }

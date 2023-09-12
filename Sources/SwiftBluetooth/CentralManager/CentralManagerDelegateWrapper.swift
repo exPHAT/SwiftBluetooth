@@ -40,8 +40,19 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         parent.delegate?.centralManager(parent, didDiscover: parent.peripheral(peripheral), advertisementData: advertisementData, rssi: RSSI)
     }
 
+    func centralManager(_ central: CBCentralManager, connectionEventDidOccur event: CBConnectionEvent, for peripheral: CBPeripheral) {
+        guard let parent else { return }
+        parent.delegate?.centralManager(parent, connectionEventDidOccur: event, for: parent.peripheral(peripheral))
+    }
+
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
         guard let parent else { return }
         parent.delegate?.centralManager(parent, willRestoreState: dict)
     }
+
+    func centralManager(_ central: CBCentralManager, didUpdateANCSAuthorizationFor peripheral: CBPeripheral) {
+        guard let parent else { return }
+        parent.delegate?.centralManager(parent, didUpdateANCSAuthorizationFor: parent.peripheral(peripheral))
+    }
+
 }

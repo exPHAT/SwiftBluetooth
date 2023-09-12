@@ -53,15 +53,15 @@ public extension Peripheral {
 
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping (Result<[CBService], Error>) -> Void) {
         eventSubscriptions.queue { event, done in
-            if case .discoveredServices(let services, let error) = event {
-                if let error {
-                    completionHandler(.failure(error))
-                    return
-                }
+            guard case .discoveredServices(let services, let error) = event else { return }
+            defer { done() }
 
-                completionHandler(.success(services))
-                done()
+            if let error {
+                completionHandler(.failure(error))
+                return
             }
+
+            completionHandler(.success(services))
         }
 
         discoverServices(serviceUUIDs)
@@ -69,15 +69,15 @@ public extension Peripheral {
 
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
         eventSubscriptions.queue { event, done in
-            if case .discoveredCharacteristics(let characteristics, let error) = event {
-                if let error {
-                    completionHandler(.failure(error))
-                    return
-                }
+            guard case .discoveredCharacteristics(let characteristics, let error) = event else { return }
+            defer { done() }
 
-                completionHandler(.success(characteristics))
-                done()
+            if let error {
+                completionHandler(.failure(error))
+                return
             }
+
+            completionHandler(.success(characteristics))
         }
 
         discoverCharacteristics(characteristicUUIDs, for: service)
@@ -103,5 +103,37 @@ public extension Peripheral {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 
         writeValue(data, for: mappedCharacteristic, type: type)
+    }
+
+    func readRSSI(completionHandler: @escaping (Result<NSNumber, Error>) -> Void) {
+        eventSubscriptions.queue { event, done in
+            guard case .readRSSI(let RSSI, let error) = event else { return }
+            defer { done() }
+
+            if let error = error {
+                completionHandler(.failure(error))
+            } else {
+                completionHandler(.success(RSSI))
+            }
+        }
+
+        readRSSI()
+    }
+
+    func openL2CAPChannel(_ PSM: CBL2CAPPSM, completionHandler: @escaping (Result<CBL2CAPChannel, Error>) -> Void) {
+        eventSubscriptions.queue { event, done in
+            guard case .didOpenL2CAPChannel(let channel, let error) = event else { return }
+            defer { done() }
+
+            if let error {
+                completionHandler(.failure(error))
+            } else if let channel {
+                completionHandler(.success(channel))
+            } else {
+                completionHandler(.failure(PeripheralError.unknown))
+            }
+        }
+
+        openL2CAPChannel(PSM)
     }
 }

@@ -34,7 +34,7 @@ internal final class NotifyingTracker<Key> where Key: Hashable {
         `internal`[key] = result
 
         // Return true when at least 1 internal characteristic is notifying
-        // OR: internally, the last value for notifying was `true`
+        // OR: externally, the last value for notifying was `true`
         return (result > 0) || (external[key] ?? false)
     }
 }
