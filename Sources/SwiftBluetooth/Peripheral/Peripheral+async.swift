@@ -19,6 +19,15 @@ public extension Peripheral {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func readValue(for descriptor: CBDescriptor) async -> Any? {
+        await withCheckedContinuation { cont in
+            self.readValue(for: descriptor) { value in
+                cont.resume(returning: value)
+            }
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValues(for characteristic: CBCharacteristic) -> AsyncStream<Data> {
         .init { cont in
             let subscription = self.readValues(for: characteristic) { newValue in
@@ -42,6 +51,15 @@ public extension Peripheral {
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) async {
         await withCheckedContinuation { cont in
             self.writeValue(data, for: characteristic, type: type) {
+                cont.resume()
+            }
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func writeValue(_ data: Data, for descriptor: CBDescriptor) async {
+        await withCheckedContinuation { cont in
+            self.writeValue(data, for: descriptor) {
                 cont.resume()
             }
         }
@@ -94,6 +112,27 @@ public extension Peripheral {
                 }
             }
         }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func discoverDescriptors(for characteristic: CBCharacteristic) async throws -> [CBDescriptor] {
+        try await withCheckedThrowingContinuation { cont in
+            self.discoverDescriptors(for: characteristic) { result in
+                switch result {
+                case .success(let descriptors):
+                    cont.resume(returning: descriptors)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func discoverDescriptors(for characteristic: Characteristic) async throws -> [CBDescriptor] {
+        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+
+        return try await discoverDescriptors(for: mappedCharacteristic)
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)

@@ -17,6 +17,15 @@ public extension Peripheral {
         readValue(for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
+    func readValue(for descriptor: CBDescriptor, completionHandler: @escaping (Any?) -> Void) {
+        descriptorMap.queue(key: descriptor.uuid) { value, done in
+            completionHandler(value)
+            done()
+        }
+
+        readValue(for: descriptor)
+    }
+
     func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> CancellableTask {
         let subscription = responseMap.queue(key: characteristic.uuid) { data, _ in
             onValueUpdate(data)
@@ -51,6 +60,15 @@ public extension Peripheral {
         }
     }
 
+    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping () -> Void) {
+        writeMap.queue(key: descriptor.uuid) { _, done in
+            completionHandler()
+            done()
+        }
+
+        writeValue(data, for: descriptor)
+    }
+
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping (Result<[CBService], Error>) -> Void) {
         eventSubscriptions.queue { event, done in
             guard case .discoveredServices(let services, let error) = event else { return }
@@ -69,7 +87,8 @@ public extension Peripheral {
 
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
         eventSubscriptions.queue { event, done in
-            guard case .discoveredCharacteristics(let characteristics, let error) = event else { return }
+            guard case .discoveredCharacteristics(let forService, let characteristics, let error) = event,
+                  forService.uuid == service.uuid else { return }
             defer { done() }
 
             if let error {
@@ -83,6 +102,23 @@ public extension Peripheral {
         discoverCharacteristics(characteristicUUIDs, for: service)
     }
 
+    func discoverDescriptors(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) {
+        eventSubscriptions.queue { event, done in
+            guard case .discoveredDescriptors(let forCharacteristic, let descriptors, let error) = event,
+                  forCharacteristic.uuid == characteristic.uuid else { return }
+            defer { done() }
+
+            if let error {
+                completionHandler(.failure(error))
+                return
+            }
+
+            completionHandler(.success(descriptors))
+        }
+
+        discoverDescriptors(for: characteristic)
+    }
+
     func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
         let mappedUUIDs = characteristics.map {
             guard let characteristic = knownCharacteristics[$0.uuid] else { fatalError("Characteristic \($0.uuid) not found.") }
@@ -91,6 +127,12 @@ public extension Peripheral {
         }
 
         discoverCharacteristics(mappedUUIDs, for: service, completionHandler: completionHandler)
+    }
+
+    func discoverDescriptors(for characteristic: Characteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) {
+        guard let characteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+
+        discoverDescriptors(for: characteristic)
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {

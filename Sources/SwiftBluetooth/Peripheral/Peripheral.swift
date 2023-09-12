@@ -7,6 +7,7 @@ public class Peripheral: NSObject {
 
     internal var responseMap = AsyncSubscriptionQueueMap<CBUUID, Data>()
     internal var writeMap = AsyncSubscriptionQueueMap<CBUUID, Void>()
+    internal var descriptorMap = AsyncSubscriptionQueueMap<CBUUID, Any?>()
     internal var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>()
 
     internal var knownCharacteristics: [CBUUID: CBCharacteristic] = [:]

@@ -29,12 +29,13 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
             parent.knownCharacteristics[characteristic.uuid] = characteristic
         }
 
-        parent.eventSubscriptions.recieve(.discoveredCharacteristics(service.characteristics ?? [], error))
+        parent.eventSubscriptions.recieve(.discoveredCharacteristics(service, service.characteristics ?? [], error))
         parent.delegate?.peripheral(parent, didDiscoverCharacteristicsFor: service, error: error)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
         guard let parent else { return }
+        parent.eventSubscriptions.recieve(.discoveredDescriptors(characteristic, characteristic.descriptors ?? [], error))
         parent.delegate?.peripheral(parent, didDiscoverDescriptorsFor: characteristic, error: error)
     }
 
@@ -50,6 +51,8 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {
         guard let parent else { return }
+
+        parent.descriptorMap.recieve(key: descriptor.uuid, withValue: descriptor.value)
         parent.delegate?.peripheral(parent, didUpdateValueFor: descriptor, error: error)
     }
 
@@ -61,6 +64,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {
         guard let parent else { return }
+        parent.writeMap.recieve(key: descriptor.uuid, withValue: Void())
         parent.delegate?.peripheral(parent, didWriteValueFor: descriptor, error: error)
     }
 
