@@ -11,7 +11,7 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 ## Features
 
 - [x] Parity with existing `CoreBluetooth` APIs for easy, incremental migration of existing projects
-- [x] Modern, async-await API for peripheral discovery, connection, read/write, etc
+- [x] Modern, async-await API for discovery, connection, read/write, and more
 - [x] Alternate callback-based API for codebases not using Swift Concurrency
 - [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
 - [x] Easy `await`-ing of `CentralManager` state
@@ -32,11 +32,10 @@ import CoreBluetooth
 import SwiftBluetooth // Add this
 
 // Override existing CoreBluetooth classes to use SwiftBluetooth
-typealias CBCentralManager = SwiftBluetooth.CentralManager
+typealias CBCentralManager         = SwiftBluetooth.CentralManager
 typealias CBCentralManagerDelegate = SwiftBluetooth.CentralManagerDelegate
-
-typealias CBPeripheral = SwiftBluetooth.Peripheral
-typealias CBPeripheralDelegate = SwiftBluetooth.PeripheralDelegate
+typealias CBPeripheral             = SwiftBluetooth.Peripheral
+typealias CBPeripheralDelegate     = SwiftBluetooth.PeripheralDelegate
 
 // Your existing code should continue to work as normal.
 // But now you have access to all the new API's!
@@ -49,7 +48,7 @@ let central = CentralManager()
 await central.waitUntilReady()
 
 for await peripheral in central.scanForPeripherals() {
-  print("Discovered peripheral:", peripheral.name ?? "Unknown")
+  print("Discovered:", peripheral.name ?? "Unknown")
 }
 ```
 
@@ -72,17 +71,20 @@ let central = CentralManager()
 await central.waitUntilReady()
 
 // Find and connect to the first peripheral
-guard let peripheral = await central.scanForPeripherals(withServices: [myService]).first else { return }
-await central.connect(peripheral)
+let peripheral = await central.scanForPeripherals(withServices: [myService]).first!
+try! await central.connect(peripheral)
 defer { central.cancelPeripheralConnection(peripheral) }
 
 // Discover services and characteristics
-guard let service = await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService }) else { return }
-let _ = await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
+let service = try! await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService })!
+let _ = try! await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
 
 // Read characteristic value!
 print("Got value:", await peripheral.readValue(for: .someCharacteristic))
 ```
+
+> **Note**
+Force-unwrapping is only used for brevity and is not reccomended.
 
 
 ## Install
