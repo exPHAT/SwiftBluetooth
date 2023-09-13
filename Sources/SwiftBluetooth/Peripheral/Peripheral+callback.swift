@@ -163,7 +163,7 @@ public extension Peripheral {
 
             if let error = error {
                 completionHandler(.failure(error))
-            } else if let channel {
+            } else if let channel = channel {
                 completionHandler(.success(channel))
             } else {
                 completionHandler(.failure(PeripheralError.unknown))
