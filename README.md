@@ -84,7 +84,38 @@ print("Got value:", await peripheral.readValue(for: .someCharacteristic))
 ```
 
 > **Note**
-Force-unwrapping is only used for brevity and is not reccomended.
+Force-unwrapping is only used for brevity and is not recommended.
+
+#### Callbacks
+
+```swift
+// Most of the stock CoreBluetooth methods have an additional new signature that takes a completionHandler
+
+central.connect(peripheral) { result in
+  if result == .failure(let error) {
+    // Issue connecting
+    return
+  }
+
+  // Connected!
+}
+
+```
+
+#### Watching with callbacks
+
+```swift
+// Peristent tasks return a `CancellableTask` that needs to be cancelled when you're done
+
+let task = central.scanForPeripherals { peripheral in
+  print("Discovered:", peripheral.name ?? "Unknown")
+}
+
+// At some point later, cancel the task to stop scanning
+task.cancel()
+```
+> **Note**
+Calling `central.stopScan()` will also cancel any peripheral scanning tasks
 
 
 ## Install
