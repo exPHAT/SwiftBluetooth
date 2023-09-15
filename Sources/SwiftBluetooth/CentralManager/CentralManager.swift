@@ -68,6 +68,7 @@ public extension CentralManager {
     }
 
     func stopScan() {
+        eventSubscriptions.recieve(.stopScan)
         centralManager.stopScan()
     }
 }
