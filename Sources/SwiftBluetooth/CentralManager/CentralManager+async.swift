@@ -26,8 +26,8 @@ public extension CentralManager {
         }
     }
 
+    // This method doesn't need to be marked async, but it prevents a signature collision
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    @discardableResult // Traditionally this API will not return anything
     func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) async -> AsyncStream<Peripheral> {
         .init { cont in
             let subscription = eventSubscriptions.queue { event, done in
