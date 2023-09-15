@@ -30,13 +30,27 @@ public extension CentralManager {
     @discardableResult // Traditionally this API will not return anything
     func scanForPeripherals(withServices services: [CBUUID]? = nil, options: [String: Any]? = nil) async -> AsyncStream<Peripheral> {
         .init { cont in
-            let subscription = self.scanForPeripherals(withServices: services, options: options) { peripheral in
-                cont.yield(peripheral)
+            let subscription = eventSubscriptions.queue { event, done in
+                switch event {
+                case .discovered(let peripheral, _, _):
+                    cont.yield(peripheral)
+                case .stopScan:
+                    done()
+                    cont.finish()
+                default:
+                    break
+                }
+            } completion: { [weak self] in
+                guard let self = self else { return }
+                self.centralManager.stopScan()
             }
 
             cont.onTermination = { _ in
                 subscription.cancel()
             }
+
+
+            centralManager.scanForPeripherals(withServices: services, options: options)
         }
     }
 }
