@@ -129,11 +129,40 @@ public extension Peripheral {
         discoverDescriptors(for: characteristic)
     }
 
+    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        guard characteristic.isNotifying != value else {
+            completionHandler(.success(value))
+            return
+        }
+
+        eventSubscriptions.queue { event, done in
+            guard case .updateNotificationState(let forCharacteristic, let error) = event,
+                  forCharacteristic.uuid == characteristic.uuid else { return }
+            defer { done() }
+
+            if let error = error {
+                completionHandler(.failure(error))
+                return
+            }
+
+            completionHandler(.success(characteristic.isNotifying))
+        }
+
+        setNotifyValue(value, for: characteristic)
+    }
+
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 
         setNotifyValue(value, for: mappedCharacteristic)
     }
+
+    func setNotifyValue(_ value: Bool, for characteristic: Characteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
+        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+
+        setNotifyValue(value, for: mappedCharacteristic, completionHandler: completionHandler)
+    }
+
 
     func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }

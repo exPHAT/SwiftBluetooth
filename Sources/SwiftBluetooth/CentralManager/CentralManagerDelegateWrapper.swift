@@ -41,6 +41,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
 
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
         guard let parent = parent else { return }
+        parent.eventSubscriptions.recieve(.restoreState(dict))
         parent.delegate?.centralManager(parent, willRestoreState: dict)
     }
 

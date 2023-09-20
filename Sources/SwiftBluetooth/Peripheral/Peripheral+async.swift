@@ -136,6 +136,37 @@ public extension Peripheral {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    @discardableResult
+    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) async throws -> Bool {
+        try await withCheckedThrowingContinuation { cont in
+            self.setNotifyValue(value, for: characteristic) { result in
+                switch result {
+                case .success(let value):
+                    cont.resume(returning: value)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    @discardableResult
+    func setNotifyValue(_ value: Bool, for characteristic: Characteristic) async throws -> Bool {
+        try await withCheckedThrowingContinuation { cont in
+            self.setNotifyValue(value, for: characteristic) { result in
+                switch result {
+                case .success(let value):
+                    cont.resume(returning: value)
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readRSSI() async throws -> NSNumber {
         try await withCheckedThrowingContinuation { cont in
             self.readRSSI { result in

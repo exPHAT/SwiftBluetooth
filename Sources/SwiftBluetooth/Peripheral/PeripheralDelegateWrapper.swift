@@ -70,6 +70,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         guard let parent = parent else { return }
+        parent.eventSubscriptions.recieve(.updateNotificationState(characteristic, error))
         parent.delegate?.peripheral(parent, didUpdateNotificationStateFor: characteristic, error: error)
     }
 
