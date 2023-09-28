@@ -180,6 +180,7 @@ public extension Peripheral {
         }
     }
 
+    #if !os(macOS)
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM) async throws -> CBL2CAPChannel {
         try await withCheckedThrowingContinuation { cont in
@@ -193,4 +194,5 @@ public extension Peripheral {
             }
         }
     }
+    #endif
 }

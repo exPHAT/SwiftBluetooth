@@ -10,7 +10,13 @@ let package = Package(
                 .watchOS(.v7)],
     products: [
         .library(name: "SwiftBluetooth", targets: ["SwiftBluetooth"])],
+    dependencies: [
+        .package(url: "https://github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock.git", branch: "main")],
     targets: [
-        .target(name: "SwiftBluetooth", dependencies: []),
-        .testTarget(name: "SwiftBluetoothTests", dependencies: ["SwiftBluetooth"])]
+        .target(name: "SwiftBluetooth"),
+        .target(name: "SwiftBluetoothMock",
+                dependencies: [.product(name: "CoreBluetoothMock", package: "IOS-CoreBluetooth-Mock")],
+                exclude: ["SwiftBluetooth/CentralManager/CBCentralManagerFactory.swift"]),
+        .testTarget(name: "SwiftBluetoothTests",
+                    dependencies: ["SwiftBluetoothMock"])]
 )

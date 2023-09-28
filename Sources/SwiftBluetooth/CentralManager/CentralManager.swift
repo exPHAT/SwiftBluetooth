@@ -7,6 +7,7 @@ public class CentralManager: NSObject {
 
     internal var eventSubscriptions = AsyncSubscriptionQueue<CentralManagerEvent>()
     private var peripheralMap: [UUID: Peripheral] = [:]
+    internal var connectedPeripherals = Set<Peripheral>()
 
     // MARK: - CBCentralManager properties
     public var delegate: CentralManagerDelegate? // Accessed from wrappedDelegate directly
@@ -19,7 +20,7 @@ public class CentralManager: NSObject {
 
     // MARK: - CBCentralManager initializers
     override init() {
-        centralManager = .init()
+        centralManager = CBCentralManagerFactory.instance(delegate: nil, queue: nil, forceMock: true)
         super.init()
         
         centralManager.delegate = wrappedDelegate
@@ -27,7 +28,7 @@ public class CentralManager: NSObject {
 
     public init(delegate: CentralManagerDelegate? = nil, queue: DispatchQueue? = nil, options: [String: Any]? = nil) {
         self.delegate = delegate
-        centralManager = .init(delegate: nil, queue: queue, options: options)
+        centralManager = CBCentralManagerFactory.instance(delegate: nil, queue: queue, options: options, forceMock: true)
         super.init()
 
         centralManager.delegate = wrappedDelegate

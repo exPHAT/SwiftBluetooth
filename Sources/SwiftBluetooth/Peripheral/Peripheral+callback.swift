@@ -130,7 +130,9 @@ public extension Peripheral {
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
-        guard characteristic.isNotifying != value else {
+        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
+
+        guard characteristic.isNotifying != shouldNotify else {
             completionHandler(.success(value))
             return
         }
@@ -148,7 +150,7 @@ public extension Peripheral {
             completionHandler(.success(characteristic.isNotifying))
         }
 
-        setNotifyValue(value, for: characteristic)
+        cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {
@@ -185,6 +187,8 @@ public extension Peripheral {
         readRSSI()
     }
 
+    #if !os(macOS)
+    @available(iOS 11.0, tvOS 11.0, watchOS 4.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM, completionHandler: @escaping (Result<CBL2CAPChannel, Error>) -> Void) {
         eventSubscriptions.queue { event, done in
             guard case .didOpenL2CAPChannel(let channel, let error) = event else { return }
@@ -201,4 +205,5 @@ public extension Peripheral {
 
         openL2CAPChannel(PSM)
     }
+    #endif
 }

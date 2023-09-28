@@ -85,7 +85,10 @@ public extension Peripheral {
         cbPeripheral.readRSSI()
     }
 
+    #if !os(macOS)
+    @available(iOS 11.0, tvOS 11.0, watchOS 4.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM) {
         cbPeripheral.openL2CAPChannel(PSM)
     }
+    #endif
 }

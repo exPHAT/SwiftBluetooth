@@ -1,0 +1,16 @@
+{
+  "object": {
+    "pins": [
+      {
+        "package": "CoreBluetoothMock",
+        "repositoryURL": "https://github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock.git",
+        "state": {
+          "branch": "main",
+          "revision": "194863075520d244f710fddd66f4f111c21661ef",
+          "version": null
+        }
+      }
+    ]
+  },
+  "version": 1
+}

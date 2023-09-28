@@ -3,6 +3,11 @@ import CoreBluetooth
 
 public extension CentralManager {
     func waitUntilReady(completionHandler: @escaping () -> Void) {
+        guard state != .poweredOn else {
+            completionHandler()
+            return
+        }
+
         eventSubscriptions.queue { event, done in
             if case .stateUpdated(let state) = event,
                state == .poweredOn {
@@ -53,5 +58,27 @@ public extension CentralManager {
         centralManager.scanForPeripherals(withServices: services, options: options)
 
         return subscription
+    }
+
+    func cancelPeripheralConnection(_ peripheral: Peripheral, completionHandler: @escaping (Result<Void, Error>) -> Void) {
+        guard connectedPeripherals.contains(peripheral) else {
+            completionHandler(.success(Void()))
+            return
+        }
+
+        eventSubscriptions.queue { event, done in
+            guard case .disconnected(let disconnected, let error) = event,
+                  disconnected == peripheral else { return }
+
+            if let error = error {
+                completionHandler(.failure(error))
+            } else {
+                completionHandler(.success(Void()))
+            }
+
+            done()
+        }
+
+        cancelPeripheralConnection(peripheral)
     }
 }

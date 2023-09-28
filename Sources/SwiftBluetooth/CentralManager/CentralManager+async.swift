@@ -53,4 +53,19 @@ public extension CentralManager {
             centralManager.scanForPeripherals(withServices: services, options: options)
         }
     }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func cancelPeripheralConnection(_ peripheral: Peripheral) async throws {
+        try await withCheckedThrowingContinuation { cont in
+            self.cancelPeripheralConnection(peripheral) { result in
+                switch result {
+                case .success(_):
+                    cont.resume()
+                case .failure(let error):
+                    cont.resume(throwing: error)
+                }
+            }
+        }
+
+    }
 }
