@@ -16,8 +16,9 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 - [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
 - [x] Easy `await`-ing of `CentralManager` state
 - [x] Staticly typed characteristics
-- [x] Zero dependencies
 - [x] Thread safe
+- [x] Zero inherited dependencies
+- [x] Tested with included `SwiftBluetoothMock` library
 - [ ] SwiftUI support
 
 ## Examples
