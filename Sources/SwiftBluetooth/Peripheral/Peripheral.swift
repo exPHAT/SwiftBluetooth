@@ -76,7 +76,8 @@ public extension Peripheral {
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) {
         // Keep track of if the user wants notifying values outside of our subscriptions
-        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
+//        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
+        let shouldNotify = value
 
         cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
     }

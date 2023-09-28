@@ -154,18 +154,11 @@ final class SwiftBluetoothTests: XCTestCase {
             // CoreBluetoothMock adds some delays to its ability to simulate
             // Using our async setNotifyValue we can wait for notifying to actually be true
             try await peripheral.setNotifyValue(true, for: characteristic)
-
             XCTAssertTrue(characteristic.isNotifying)
 
             mockPeripheral.simulateValueUpdate(.init([0x10]), for: mutableMockCharacteristic)
             mockPeripheral.simulateValueUpdate(.init([0x11]), for: mutableMockCharacteristic)
             mockPeripheral.simulateValueUpdate(.init([0x12]), for: mutableMockCharacteristic)
-
-            // Misleading, but this shouldn't actually set it to false because our stream is waiting
-            // Maybe this should close the stream...
-            try await peripheral.setNotifyValue(false, for: characteristic)
-
-            XCTAssertTrue(characteristic.isNotifying)
 
             var count = 0
             for await value in stream! {
@@ -181,17 +174,74 @@ final class SwiftBluetoothTests: XCTestCase {
                 }
             }
 
-            try await peripheral.setNotifyValue(false, for: characteristic)
-
+            // Still true because the stream hasn't actually been deallocated
             XCTAssertTrue(characteristic.isNotifying)
 
+            try await peripheral.setNotifyValue(false, for: characteristic)
+            XCTAssertFalse(characteristic.isNotifying)
+
             // Set stream to nil to deallocate AsyncStream
-            // and cause stream to actually end and end notifying requirement
             stream = nil
 
             try await peripheral.setNotifyValue(false, for: characteristic)
-
             XCTAssertFalse(characteristic.isNotifying)
+
+            try await peripheral.setNotifyValue(false, for: characteristic)
+            XCTAssertFalse(characteristic.isNotifying)
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testSubscribeBreakLoop() async throws {
+        try await withTimeout {
+            let central = CentralManager()
+            await central.waitUntilReady()
+            let peripheral = await central.scanForPeripherals().first!
+            try await central.connect(peripheral)
+            let services = try await peripheral.discoverServices()
+
+            var characteristics: [CBCharacteristic] = []
+
+            for service in services {
+                characteristics.append(contentsOf: try await peripheral.discoverCharacteristics(for: service))
+            }
+
+            let mutableMockCharacteristic = mockCharacteristics.first(where: { $0.properties.contains(.read) &&
+                                                                               $0.properties.contains(.notify) &&
+                                                                               $0.properties.contains(.write) })!
+            let characteristic = characteristics.first(where: { $0.uuid == mutableMockCharacteristic.uuid })
+
+            XCTAssertNotNil(characteristic)
+
+            guard let characteristic = characteristic else { fatalError() }
+
+            XCTAssertNil(characteristic.value)
+            XCTAssertFalse(characteristic.isNotifying)
+
+            // CoreBluetoothMock adds some delays to its ability to simulate
+            // Using our async setNotifyValue we can wait for notifying to actually be true
+            try await peripheral.setNotifyValue(true, for: characteristic)
+            XCTAssertTrue(characteristic.isNotifying)
+
+            let exp = self.expectation(description: "Should break out of the loop")
+
+            Task {
+                for await _ in peripheral.readValues(for: characteristic) {
+                    // Do nothing in this loop and never cause it to break
+                }
+
+                exp.fulfill()
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                mockPeripheral.simulateValueUpdate(.init([0x10]), for: mutableMockCharacteristic)
+                mockPeripheral.simulateValueUpdate(.init([0x11]), for: mutableMockCharacteristic)
+                mockPeripheral.simulateValueUpdate(.init([0x12]), for: mutableMockCharacteristic)
+
+                peripheral.setNotifyValue(false, for: characteristic)
+            }
+
+            await self.fulfillment(of: [exp])
         }
     }
 

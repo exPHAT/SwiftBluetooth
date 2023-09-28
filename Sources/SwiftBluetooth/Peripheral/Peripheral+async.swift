@@ -30,13 +30,34 @@ public extension Peripheral {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValues(for characteristic: CBCharacteristic) -> AsyncStream<Data> {
         .init { cont in
-            let subscription = self.readValues(for: characteristic) { newValue in
-                cont.yield(newValue)
+            let valueSubscription = responseMap.queue(key: characteristic.uuid) { data, _ in
+                cont.yield(data)
+            } completion: { [weak self] in
+                guard let self = self else { return }
+
+                let shouldNotify = self.notifyingState.removeInternal(forKey: characteristic.uuid)
+
+                // We should only stop notifying when we have no internal handlers waiting on it
+                // and the last external `setNotifyValue` was set to false
+                self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
+            }
+
+            let eventSubscription = eventSubscriptions.queue { event, done in
+                guard case .updateNotificationState(let foundCharacteristic, _) = event,
+                      foundCharacteristic.uuid == characteristic.uuid else { return }
+
+                cont.finish()
+                valueSubscription.cancel()
+                done()
             }
 
             cont.onTermination = { _ in
-                subscription.cancel()
+                valueSubscription.cancel()
+                eventSubscription.cancel()
             }
+
+            notifyingState.addInternal(forKey: characteristic.uuid)
+            cbPeripheral.setNotifyValue(true, for: characteristic)
         }
     }
 

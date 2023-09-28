@@ -130,7 +130,8 @@ public extension Peripheral {
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
-        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
+//        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
+        let shouldNotify = value
 
         guard characteristic.isNotifying != shouldNotify else {
             completionHandler(.success(value))
