@@ -244,7 +244,7 @@ final class SwiftBluetoothTests: XCTestCase {
             #if swift(>=5.8)
             await self.fulfillment(of: [exp])
             #else
-            self.wait(for: [exp])
+            self.wait(for: [exp], timeout: 5)
             #endif
         }
     }
