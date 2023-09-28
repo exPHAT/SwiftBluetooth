@@ -2,7 +2,7 @@
 
 > CoreBluetooth API's for modern Swift
 
-Easily interface with Bluetooth peripherals in new or existing projects through modern Swift API's.
+Easily interface with Bluetooth peripherals in new or existing projects through modern async Swift API's.
 
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FexPHAT%2FSwiftBluetooth%2Fbadge%3Ftype%3Dswift-versions)](https://swiftpackageindex.com/exPHAT/SwiftBluetooth)
 [![](https://img.shields.io/endpoint?url=https%3A%2F%2Fswiftpackageindex.com%2Fapi%2Fpackages%2FexPHAT%2FSwiftBluetooth%2Fbadge%3Ftype%3Dplatforms)](https://swiftpackageindex.com/exPHAT/SwiftBluetooth)
@@ -14,7 +14,7 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 - [x] Modern, async-await API for discovery, connection, read/write, and more
 - [x] Alternate callback-based API for codebases not using Swift Concurrency
 - [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
-- [x] Easy `await`-ing of `CentralManager` state
+- [x] Easy await-ing of `CentralManager` state
 - [x] Staticly typed characteristics
 - [x] Thread safe
 - [x] Zero inherited dependencies
