@@ -241,7 +241,11 @@ final class SwiftBluetoothTests: XCTestCase {
                 peripheral.setNotifyValue(false, for: characteristic)
             }
 
+            #if swift(>=5.8)
             await self.fulfillment(of: [exp])
+            #else
+            self.wait(for: [exp])
+            #endif
         }
     }
 
