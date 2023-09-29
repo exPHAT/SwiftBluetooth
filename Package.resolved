@@ -5,9 +5,9 @@
         "package": "CoreBluetoothMock",
         "repositoryURL": "https://github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock.git",
         "state": {
-          "branch": "main",
+          "branch": null,
           "revision": "194863075520d244f710fddd66f4f111c21661ef",
-          "version": null
+          "version": "0.17.0"
         }
       }
     ]

@@ -11,7 +11,7 @@ let package = Package(
     products: [
         .library(name: "SwiftBluetooth", targets: ["SwiftBluetooth"])],
     dependencies: [
-        .package(url: "https://github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock.git", branch: "main")],
+        .package(url: "https://github.com/NordicSemiconductor/IOS-CoreBluetooth-Mock.git", "0.17.0"..<"0.18.0")],
     targets: [
         .target(name: "SwiftBluetooth"),
         .target(name: "SwiftBluetoothMock",
