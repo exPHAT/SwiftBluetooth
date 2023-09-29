@@ -44,7 +44,8 @@ public extension Peripheral {
 
             let eventSubscription = eventSubscriptions.queue { event, done in
                 guard case .updateNotificationState(let foundCharacteristic, _) = event,
-                      foundCharacteristic.uuid == characteristic.uuid else { return }
+                      foundCharacteristic.uuid == characteristic.uuid,
+                      !foundCharacteristic.isNotifying else { return }
 
                 cont.finish()
                 valueSubscription.cancel()
