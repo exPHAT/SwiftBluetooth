@@ -27,22 +27,33 @@ public extension Peripheral {
     }
 
     func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> CancellableTask {
-        let subscription = responseMap.queue(key: characteristic.uuid) { data, _ in
+        let valueSubscription = responseMap.queue(key: characteristic.uuid) { data, _ in
             onValueUpdate(data)
         } completion: { [weak self] in
             guard let self = self else { return }
 
             let shouldNotify = self.notifyingState.removeInternal(forKey: characteristic.uuid)
-
             // We should only stop notifying when we have no internal handlers waiting on it
             // and the last external `setNotifyValue` was set to false
+            //
+            // NOTE: External notifying tracking is currently disabled
             self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
+        }
+
+        let eventSubscription = eventSubscriptions.queue { event, done in
+            guard case .updateNotificationState(let foundCharacteristic, _) = event,
+                  foundCharacteristic.uuid == characteristic.uuid,
+                  !foundCharacteristic.isNotifying else { return }
+
+            done()
+        } completion: {
+            valueSubscription.cancel()
         }
 
         notifyingState.addInternal(forKey: characteristic.uuid)
         cbPeripheral.setNotifyValue(true, for: characteristic)
 
-        return subscription
+        return eventSubscription
     }
 
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping () -> Void) {
