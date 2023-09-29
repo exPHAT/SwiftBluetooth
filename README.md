@@ -1,6 +1,4 @@
-# SwiftBluetooth
-
-> CoreBluetooth API's for modern Swift
+![SwiftBluetooth](.github/assets/logo.jpg)
 
 Easily interface with Bluetooth peripherals in new or existing projects through modern async Swift API's.
 
