@@ -4,6 +4,10 @@ import Foundation
 private class ConnectablePeripheralDelegateSpec: CBMPeripheralSpecDelegate {
     var values: [CBMUUID: Data] = [:]
 
+    func reset() {
+        values = [:]
+    }
+
     func peripheralDidReceiveConnectionRequest(_ peripheral: CBMPeripheralSpec) -> Result<Void, Error> {
         .success(Void())
     }
@@ -22,9 +26,9 @@ private class ConnectablePeripheralDelegateSpec: CBMPeripheralSpecDelegate {
         return .success(Void())
     }
 
-//    func peripheral(_ peripheral: CBMPeripheralSpec, didReceiveSetNotifyRequest enabled: Bool, for characteristic: CBMCharacteristicMock) -> Result<Void, Error> {
-//
-//    }
+    func peripheral(_ peripheral: CBMPeripheralSpec, didReceiveSetNotifyRequest enabled: Bool, for characteristic: CBMCharacteristicMock) -> Result<Void, Error> {
+        return .success(Void())
+    }
 }
 
 let mockCharacteristics: [CBMCharacteristicMock] = [
