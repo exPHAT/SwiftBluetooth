@@ -3,6 +3,10 @@ import Foundation
 internal final class AsyncSubscriptionQueue<Value> {
     private var items: [AsyncSubscription<Value>] = []
 
+    internal var isEmpty: Bool {
+        items.isEmpty
+    }
+
     // TODO: Convert these to just use a lock
     private lazy var dispatchQueue = DispatchQueue(label: "async-subscription-queue")
 
