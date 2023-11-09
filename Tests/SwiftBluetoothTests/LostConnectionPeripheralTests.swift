@@ -2,32 +2,7 @@ import XCTest
 @testable import CoreBluetoothMock
 @testable import SwiftBluetoothMock
 
-final class LostConnectionPeripheralTests: XCTestCaseWithTimeout {
-    var central: CentralManager!
-    var peripheral: Peripheral!
-
-    override func setUp() {
-        mockPeripheral.connectionDelegate?.reset()
-        CBMCentralManagerMock.simulatePeripherals([mockPeripheral])
-        CBMCentralManagerMock.simulateInitialState(.poweredOn)
-        central = CentralManager()
-    }
-
-    override func tearDown() {
-        if let peripheral {
-            XCTAssertTrue(peripheral.responseMap.isEmpty)
-            XCTAssertTrue(peripheral.writeMap.isEmpty)
-            XCTAssertTrue(peripheral.descriptorMap.isEmpty)
-            XCTAssertTrue(peripheral.eventSubscriptions.isEmpty)
-        }
-
-        XCTAssertTrue(central.eventSubscriptions.isEmpty)
-
-        central = nil
-        peripheral = nil
-        CBMCentralManagerMock.tearDownSimulation()
-    }
-
+final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDiscoverServicesDuringDisconnect() async throws {
         try await withTimeout { [self] in

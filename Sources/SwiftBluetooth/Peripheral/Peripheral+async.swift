@@ -30,8 +30,23 @@ public extension Peripheral {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValues(for characteristic: CBCharacteristic) -> AsyncStream<Data> {
         .init { cont in
-            let valueSubscription = responseMap.queue(key: characteristic.uuid) { data, _ in
-                cont.yield(data)
+            var task1: AsyncSubscription<Result<Data, Error>>?
+            var task2: AsyncSubscription<PeripheralEvent>?
+
+            let cancelBoth = {
+                task1?.cancel()
+                task2?.cancel()
+            }
+
+            task1 = responseMap.queue(key: characteristic.uuid) { result, done in
+                switch result {
+                case .success(let data):
+                    cont.yield(data)
+                case .failure:
+                    cont.finish()
+                    task2?.cancel()
+                    done()
+                }
             } completion: { [weak self] in
                 guard let self = self else { return }
 
@@ -42,26 +57,26 @@ public extension Peripheral {
                 self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
             }
 
-            let eventSubscription = eventSubscriptions.queue { event, done in
+            task2 = eventSubscriptions.queue { event, done in
                 if case .didDisconnect = event {
                     cont.finish()
-                    valueSubscription.cancel()
+                    task1?.cancel()
                     done()
                     return
                 }
 
-                guard case .updateNotificationState(let foundCharacteristic, _) = event,
+                guard case .updateNotificationState(let foundCharacteristic, let error) = event,
                       foundCharacteristic.uuid == characteristic.uuid,
-                      !foundCharacteristic.isNotifying else { return }
+                      (!foundCharacteristic.isNotifying || error != nil) else { return }
 
                 cont.finish()
-                valueSubscription.cancel()
+                task1?.cancel()
                 done()
             }
 
+
             cont.onTermination = { _ in
-                valueSubscription.cancel()
-                eventSubscription.cancel()
+                cancelBoth()
             }
 
             notifyingState.addInternal(forKey: characteristic.uuid)
@@ -91,9 +106,14 @@ public extension Peripheral {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func writeValue(_ data: Data, for descriptor: CBDescriptor) async {
-        await withCheckedContinuation { cont in
-            self.writeValue(data, for: descriptor) {
+    func writeValue(_ data: Data, for descriptor: CBDescriptor) async throws {
+        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+            self.writeValue(data, for: descriptor) { error in
+                if let error {
+                    cont.resume(throwing: error)
+                    return
+                }
+
                 cont.resume()
             }
         }

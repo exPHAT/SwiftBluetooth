@@ -8,11 +8,11 @@ public extension Peripheral {
             return
         }
 
-        var task1: AsyncSubscription<Data>?
+        var task1: AsyncSubscription<Result<Data, Error>>?
         var task2: AsyncSubscription<PeripheralEvent>?
 
-        task1 = responseMap.queue(key: characteristic.uuid) { data, done in
-            completionHandler(.success(data))
+        task1 = responseMap.queue(key: characteristic.uuid) { result, done in
+            completionHandler(result)
             task2?.cancel()
             done()
         }
@@ -40,11 +40,11 @@ public extension Peripheral {
             return
         }
 
-        var task1: AsyncSubscription<Any?>?
+        var task1: AsyncSubscription<Result<Any?, Error>>?
         var task2: AsyncSubscription<PeripheralEvent>?
 
-        task1 = descriptorMap.queue(key: descriptor.uuid) { value, done in
-            completionHandler(.success(value))
+        task1 = descriptorMap.queue(key: descriptor.uuid) { result, done in
+            completionHandler(result)
             task2?.cancel()
             done()
         }
@@ -61,8 +61,31 @@ public extension Peripheral {
     }
 
     func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> CancellableTask {
-        let valueSubscription = responseMap.queue(key: characteristic.uuid) { data, _ in
-            onValueUpdate(data)
+        var task1: AsyncSubscription<Result<Data, Error>>?
+
+        let task2 = eventSubscriptions.queue { event, done in
+            if case .didDisconnect = event {
+                done()
+                return
+            }
+
+            guard case .updateNotificationState(let foundCharacteristic, let error) = event,
+                  foundCharacteristic.uuid == characteristic.uuid,
+                  (!foundCharacteristic.isNotifying || error != nil) else { return }
+
+            done()
+        } completion: {
+            task1?.cancel()
+        }
+
+        task1 = responseMap.queue(key: characteristic.uuid) { result, done in
+            switch result {
+            case .success(let data):
+                onValueUpdate(data)
+            case .failure:
+                task2.cancel()
+                done()
+            }
         } completion: { [weak self] in
             guard let self = self else { return }
 
@@ -74,25 +97,10 @@ public extension Peripheral {
             self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
         }
 
-        let eventSubscription = eventSubscriptions.queue { event, done in
-            if case .didDisconnect = event {
-                done()
-                return
-            }
-
-            guard case .updateNotificationState(let foundCharacteristic, _) = event,
-                  foundCharacteristic.uuid == characteristic.uuid,
-                  !foundCharacteristic.isNotifying else { return }
-
-            done()
-        } completion: {
-            valueSubscription.cancel()
-        }
-
         notifyingState.addInternal(forKey: characteristic.uuid)
         cbPeripheral.setNotifyValue(true, for: characteristic)
 
-        return eventSubscription
+        return task2
     }
 
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping (Error?) -> Void) {
@@ -102,11 +110,11 @@ public extension Peripheral {
         }
 
         if type == .withResponse {
-            var task1: AsyncSubscription<Void>?
+            var task1: AsyncSubscription<Error?>?
             var task2: AsyncSubscription<PeripheralEvent>?
 
-            task1 = writeMap.queue(key: characteristic.uuid) { _, done in
-                completionHandler(nil)
+            task1 = writeMap.queue(key: characteristic.uuid) { error, done in
+                completionHandler(error)
                 task2?.cancel()
                 done()
             }
@@ -127,9 +135,9 @@ public extension Peripheral {
         }
     }
 
-    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping () -> Void) {
-        writeMap.queue(key: descriptor.uuid) { _, done in
-            completionHandler()
+    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping (Error?) -> Void) {
+        writeMap.queue(key: descriptor.uuid) { error, done in
+            completionHandler(error)
             done()
         }
 
