@@ -8,7 +8,11 @@ internal final class AsyncSubscriptionQueue<Value> {
     }
 
     // TODO: Convert these to just use a lock
-    private lazy var dispatchQueue = DispatchQueue(label: "async-subscription-queue")
+    private let dispatchQueue: DispatchQueue
+
+    init(_ dispatchQueue: DispatchQueue = .init(label: "async-subscription-queue")) {
+        self.dispatchQueue = dispatchQueue
+    }
 
     @discardableResult
     func queue(block: @escaping (Value, () -> Void) -> Void, completion: (() -> Void)? = nil) -> AsyncSubscription<Value> {

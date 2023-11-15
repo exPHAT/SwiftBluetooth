@@ -163,4 +163,44 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
             XCTAssertFalse(first.isNotifying)
         }
     }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testPeripheralSimultaniousDisconnectAndRead() async throws {
+        try await withTimeout { [self] in
+            await central.waitUntilReady()
+            peripheral = await central.scanForPeripherals().first!
+            try await central.connect(peripheral)
+            let services = try await peripheral.discoverServices()
+
+            var characteristics: [CBCharacteristic] = []
+
+            for service in services {
+                characteristics.append(contentsOf: try await peripheral.discoverCharacteristics(for: service))
+            }
+
+            let readableMockCharacteristic = mockCharacteristics.first(where: { $0.properties.contains(.read) })!
+            let characteristic = characteristics.first(where: { $0.uuid == readableMockCharacteristic.uuid })
+
+            XCTAssertNotNil(characteristic)
+
+            guard let characteristic = characteristic else { fatalError() }
+
+            XCTAssertNil(characteristic.value)
+
+            // TODO: Break this out into a seperate AsyncSubscriptionQueue test?
+            // Will also need to test that SwiftBluetooth.Peripheral implements a shared DispatchQueue (like this test is doing)
+            var ran = 0
+            let exp = XCTestExpectation()
+            peripheral.readValue(for: characteristic) { result in
+                print("sadf")
+                exp.fulfill()
+                XCTAssertEqual(0, ran)
+                ran += 1
+            }
+            peripheral.responseMap.recieve(key: characteristic.uuid, withValue: .success(.init([0xFF])))
+            peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
+
+            await fulfillment(of: [exp])
+        }
+    }
 }
