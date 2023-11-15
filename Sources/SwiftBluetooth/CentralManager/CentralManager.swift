@@ -3,26 +3,25 @@ import CoreBluetooth
 
 public class CentralManager: NSObject {
     private(set) var centralManager: CBCentralManager
-    private lazy var wrappedDelegate: CentralManagerDelegateWrapper = .init(parent: self)
+    private lazy weak var wrappedDelegate: CentralManagerDelegateWrapper = .init(parent: self)
 
     internal var eventSubscriptions = AsyncSubscriptionQueue<CentralManagerEvent>()
     private var peripheralMap: [UUID: Peripheral] = [:]
     internal var connectedPeripherals = Set<Peripheral>()
 
     // MARK: - CBCentralManager properties
-    public var delegate: CentralManagerDelegate? // Accessed from wrappedDelegate directly
+    public weak var delegate: CentralManagerDelegate? // Accessed from wrappedDelegate directly
     public var state: CBManagerState { centralManager.state }
     public var isScanning: Bool { centralManager.isScanning }
 
     @available(iOS, deprecated: 13.1)
     public var authorization: CBManagerAuthorization { centralManager.authorization }
 
-
     // MARK: - CBCentralManager initializers
     override init() {
         centralManager = CBCentralManagerFactory.instance(delegate: nil, queue: nil, forceMock: true)
         super.init()
-        
+
         centralManager.delegate = wrappedDelegate
     }
 

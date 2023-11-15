@@ -39,7 +39,7 @@ let mockCharacteristics: [CBMCharacteristicMock] = [
           descriptors: CBMClientCharacteristicConfigurationDescriptorMock()),
     .init(type: CBMUUID(string: "00000000-0000-0000-0002-000000000002"),
           properties: [.read],
-          descriptors: CBMClientCharacteristicConfigurationDescriptorMock()),
+          descriptors: CBMClientCharacteristicConfigurationDescriptorMock())
 ]
 
 let mockServices: [CBMServiceMock] = [
@@ -48,14 +48,14 @@ let mockServices: [CBMServiceMock] = [
           characteristics: mockCharacteristics[0], mockCharacteristics[1]),
     .init(type: CBMUUID(string: "00000000-0000-0000-0002-000000000000"),
           primary: true,
-          characteristics: mockCharacteristics[2], mockCharacteristics[2]),
+          characteristics: mockCharacteristics[2], mockCharacteristics[2])
 ]
 
 let mockPeripheral = CBMPeripheralSpec.simulatePeripheral(identifier: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
                                                           proximity: .near)
-    .advertising(advertisementData: [CBMAdvertisementDataLocalNameKey : "Test Device",
-                                     CBMAdvertisementDataServiceUUIDsKey : mockServices.map(\.uuid),
-                                     CBMAdvertisementDataIsConnectable : true as NSNumber],
+    .advertising(advertisementData: [CBMAdvertisementDataLocalNameKey: "Test Device",
+                                     CBMAdvertisementDataServiceUUIDsKey: mockServices.map(\.uuid),
+                                     CBMAdvertisementDataIsConnectable: true as NSNumber],
                  withInterval: 0.1)
     .connectable(name: "Test Device",
                  services: mockServices,

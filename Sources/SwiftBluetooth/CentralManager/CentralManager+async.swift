@@ -49,7 +49,6 @@ public extension CentralManager {
                 subscription.cancel()
             }
 
-
             centralManager.scanForPeripherals(withServices: services, options: options)
         }
     }
@@ -59,7 +58,7 @@ public extension CentralManager {
         try await withCheckedThrowingContinuation { cont in
             self.cancelPeripheralConnection(peripheral) { result in
                 switch result {
-                case .success(_):
+                case .success:
                     cont.resume()
                 case .failure(let error):
                     cont.resume(throwing: error)

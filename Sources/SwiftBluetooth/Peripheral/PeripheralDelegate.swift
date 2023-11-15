@@ -1,7 +1,7 @@
 import Foundation
 import CoreBluetooth
 
-public protocol PeripheralDelegate {
+public protocol PeripheralDelegate: AnyObject {
     func peripheral(_ peripheral: Peripheral, didDiscoverServices error: Error?)
     func peripheral(_ peripheral: Peripheral, didDiscoverIncludedServicesFor service: CBService, error: Error?)
     func peripheral(_ peripheral: Peripheral, didDiscoverCharacteristicsFor service: CBService, error: Error?)
@@ -35,4 +35,3 @@ public extension PeripheralDelegate {
 
     func peripheralDidUpdateName(_ peripheral: Peripheral) { }
 }
-

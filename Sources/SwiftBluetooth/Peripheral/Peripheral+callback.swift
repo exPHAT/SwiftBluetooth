@@ -177,7 +177,6 @@ public extension Peripheral {
         setNotifyValue(value, for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
-
     func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 

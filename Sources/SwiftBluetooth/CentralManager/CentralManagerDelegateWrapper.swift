@@ -40,14 +40,14 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         parent.delegate?.centralManager(parent, didFailToConnect: peripheral, error: error)
     }
 
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String : Any], rssi RSSI: NSNumber) {
+    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
         parent.eventSubscriptions.recieve(.discovered(peripheral, advertisementData, RSSI))
         parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
     }
 
-    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String : Any]) {
+    func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         guard let parent = parent else { return }
         parent.eventSubscriptions.recieve(.restoreState(dict))
         parent.delegate?.centralManager(parent, willRestoreState: dict)

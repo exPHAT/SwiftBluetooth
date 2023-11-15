@@ -172,7 +172,6 @@ public extension Peripheral {
         }
     }
 
-
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     @discardableResult
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) async throws -> Bool {
