@@ -200,7 +200,11 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
             peripheral.responseMap.recieve(key: characteristic.uuid, withValue: .success(.init([0xFF])))
             peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
 
-            await fulfillment(of: [exp])
+            #if swift(>=5.8)
+            await self.fulfillment(of: [exp])
+            #else
+            self.wait(for: [exp], timeout: 5)
+            #endif
         }
     }
 }
