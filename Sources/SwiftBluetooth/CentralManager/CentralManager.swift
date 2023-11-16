@@ -43,6 +43,10 @@ public class CentralManager: NSObject {
         peripheralMap[cbPeripheral.identifier] = Peripheral(cbPeripheral)
         return peripheral(cbPeripheral)
     }
+
+    internal func removePeripheral(_ cbPeripheral: CBPeripheral) {
+        peripheralMap.removeValue(forKey: cbPeripheral.identifier)
+    }
 }
 
 // MARK: - CBCentralManager methods

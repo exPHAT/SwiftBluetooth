@@ -30,7 +30,10 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
 
         parent.connectedPeripherals.remove(peripheral)
         parent.eventSubscriptions.recieve(.disconnected(peripheral, error))
+        peripheral.eventSubscriptions.recieve(.didDisconnect(error))
         parent.delegate?.centralManager(parent, didDisconnectPeripheral: peripheral, error: error)
+
+        parent.removePeripheral(peripheral.cbPeripheral)
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {

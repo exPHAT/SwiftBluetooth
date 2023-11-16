@@ -5,10 +5,11 @@ public class Peripheral: NSObject {
     private(set) var cbPeripheral: CBPeripheral
     private lazy var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
 
-    internal var responseMap = AsyncSubscriptionQueueMap<CBUUID, Data>()
-    internal var writeMap = AsyncSubscriptionQueueMap<CBUUID, Void>()
-    internal var descriptorMap = AsyncSubscriptionQueueMap<CBUUID, Any?>()
-    internal var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>()
+    internal let eventQueue = DispatchQueue(label: "peripheral-event-queue")
+    internal lazy var responseMap = AsyncSubscriptionQueueMap<CBUUID, Result<Data, Error>>(eventQueue)
+    internal lazy var writeMap = AsyncSubscriptionQueueMap<CBUUID, Error?>(eventQueue)
+    internal lazy var descriptorMap = AsyncSubscriptionQueueMap<CBUUID, Result<Any?, Error>>(eventQueue)
+    internal lazy var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>(eventQueue)
 
     internal var knownCharacteristics: [CBUUID: CBCharacteristic] = [:]
 
