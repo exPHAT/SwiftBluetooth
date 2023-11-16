@@ -3,7 +3,7 @@ import CoreBluetooth
 
 public class Peripheral: NSObject {
     private(set) var cbPeripheral: CBPeripheral
-    private lazy weak var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
+    private lazy var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
 
     internal var responseMap = AsyncSubscriptionQueueMap<CBUUID, Data>()
     internal var writeMap = AsyncSubscriptionQueueMap<CBUUID, Void>()

@@ -3,7 +3,7 @@ import CoreBluetooth
 
 public class CentralManager: NSObject {
     private(set) var centralManager: CBCentralManager
-    private lazy weak var wrappedDelegate: CentralManagerDelegateWrapper = .init(parent: self)
+    private lazy var wrappedDelegate: CentralManagerDelegateWrapper = .init(parent: self)
 
     internal var eventSubscriptions = AsyncSubscriptionQueue<CentralManagerEvent>()
     private var peripheralMap: [UUID: Peripheral] = [:]
