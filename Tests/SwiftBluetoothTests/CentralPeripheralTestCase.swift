@@ -3,13 +3,16 @@ import XCTest
 @testable import SwiftBluetoothMock
 
 class CentralPeripheralTestCase: XCTestCase {
+    let connectionTimeout: TimeInterval = 2
+
     var central: CentralManager!
     var peripheral: Peripheral!
-    
+
     override func setUp() {
         mockPeripheral.connectionDelegate?.reset()
         CBMCentralManagerMock.simulatePeripherals([mockPeripheral])
         CBMCentralManagerMock.simulateInitialState(.poweredOn)
+        mockPeripheral.simulateProximityChange(.near)
         central = CentralManager()
     }
 
@@ -17,6 +20,12 @@ class CentralPeripheralTestCase: XCTestCase {
         var hadPeripheral = false
 
         if let peripheral {
+            if mockPeripheral.isConnected {
+                try await central.cancelPeripheralConnection(peripheral)
+            }
+            central.removePeripheral(peripheral.cbPeripheral)
+            DispatchQueue.main.sync { }
+
             hadPeripheral = true
 
             XCTAssertTrue(peripheral.responseMap.isEmpty)
@@ -32,17 +41,11 @@ class CentralPeripheralTestCase: XCTestCase {
         if hadPeripheral {
             weak var weakPeripheral = peripheral
 
-            if mockPeripheral.isConnected {
-                try await central.cancelPeripheralConnection(peripheral)
-            }
-
             peripheral = nil
 
             if weakPeripheral != nil {
-                DispatchQueue.main.sync { }
+                XCTFail("Peripheral is being retained")
             }
-
-            XCTAssertNil(weakPeripheral)
         }
 
         peripheral = nil
