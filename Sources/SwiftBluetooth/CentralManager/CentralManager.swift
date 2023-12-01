@@ -5,7 +5,8 @@ public class CentralManager: NSObject {
     private(set) var centralManager: CBCentralManager
     private lazy var wrappedDelegate: CentralManagerDelegateWrapper = .init(parent: self)
 
-    internal var eventSubscriptions = AsyncSubscriptionQueue<CentralManagerEvent>()
+    internal let eventQueue = DispatchQueue(label: "centralmanager-event-queue")
+    internal lazy var eventSubscriptions = AsyncSubscriptionQueue<CentralManagerEvent>(eventQueue)
     private var peripheralMap: [UUID: Peripheral] = [:]
     internal var connectedPeripherals = Set<Peripheral>()
 

@@ -8,7 +8,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         try await withTimeout { [self] in
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
 
             XCTAssertTrue(mockPeripheral.isConnected)
 
@@ -30,7 +30,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         try await withTimeout { [self] in
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
             var characteristics: [CBCharacteristic] = []
@@ -66,7 +66,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         try await withTimeout { [self] in
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
             var characteristics: [CBCharacteristic] = []
@@ -102,7 +102,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         try await withTimeout { [self] in
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
             var characteristics: [CBCharacteristic] = []
@@ -135,7 +135,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         try await withTimeout { [self] in
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
 
             XCTAssertTrue(mockPeripheral.isConnected)
 
@@ -169,7 +169,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         try await withTimeout { [self] in
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
             var characteristics: [CBCharacteristic] = []
@@ -192,7 +192,6 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
             var ran = 0
             let exp = XCTestExpectation()
             peripheral.readValue(for: characteristic) { result in
-                print("sadf")
                 exp.fulfill()
                 XCTAssertEqual(0, ran)
                 ran += 1

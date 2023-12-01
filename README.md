@@ -71,7 +71,7 @@ await central.waitUntilReady()
 
 // Find and connect to the first peripheral
 let peripheral = await central.scanForPeripherals(withServices: [myService]).first!
-try await central.connect(peripheral)
+try await central.connect(peripheral, timeout: connectionTimeout)
 defer { central.cancelPeripheralConnection(peripheral) }
 
 // Discover services and characteristics

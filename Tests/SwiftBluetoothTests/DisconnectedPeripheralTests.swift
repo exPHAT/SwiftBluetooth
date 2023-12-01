@@ -4,12 +4,45 @@ import XCTest
 
 final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testScanOnOutOfRangePeripheral() async throws {
+        try await withTimeout { [self] in
+            central = CentralManager()
+            await central.waitUntilReady()
+
+            mockPeripheral.simulateProximityChange(.outOfRange)
+
+            let peripheral = await central.scanForPeripherals(timeout: connectionTimeout).first
+            XCTAssertNil(peripheral)
+            XCTAssertFalse(central.isScanning)
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testConnectTimeout() async throws {
+        try await withTimeout { [self] in
+            central = CentralManager()
+            await central.waitUntilReady()
+            peripheral = await central.scanForPeripherals().first!
+
+            mockPeripheral.simulateProximityChange(.outOfRange)
+
+            do {
+                try await central.connect(peripheral, timeout: connectionTimeout)
+
+                XCTFail("Shouldn't connect to out of range peripherals")
+            } catch {
+                XCTAssertEqual((error as? CBError)?.code, .connectionTimeout)
+            }
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadValueOnDisconnectedPeripheral() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
             var characteristics: [CBCharacteristic] = []
@@ -40,7 +73,6 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
                 XCTAssertNotNil(cbError)
                 XCTAssertEqual(cbError?.code, CBError.peripheralDisconnected)
             }
-
         }
     }
 
@@ -50,7 +82,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
             central = CentralManager()
             await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
-            try await central.connect(peripheral)
+            try await central.connect(peripheral, timeout: connectionTimeout)
 
             XCTAssertTrue(mockPeripheral.isConnected)
 
