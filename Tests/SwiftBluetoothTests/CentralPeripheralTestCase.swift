@@ -10,6 +10,7 @@ class CentralPeripheralTestCase: XCTestCase {
 
     override func setUp() {
         mockPeripheral.connectionDelegate?.reset()
+        CBMCentralManagerMock.simulateAuthorization(.allowedAlways)
         CBMCentralManagerMock.simulateInitialState(.poweredOn)
         CBMCentralManagerMock.simulatePeripherals([mockPeripheral])
         mockPeripheral.simulateProximityChange(.near)

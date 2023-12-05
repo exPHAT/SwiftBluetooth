@@ -2,18 +2,37 @@ import Foundation
 import CoreBluetooth
 
 public extension CentralManager {
-    func waitUntilReady(completionHandler: @escaping () -> Void) {
+    func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) {
         eventQueue.async { [self] in
             guard state != .poweredOn else {
-                completionHandler()
+                completionHandler(.success(Void()))
+                return
+            }
+
+            guard state != .unauthorized else {
+                completionHandler(.failure(CentralError.unauthorized))
+                return
+            }
+
+            guard state != .unsupported else {
+                completionHandler(.failure(CentralError.unavailable))
                 return
             }
 
             eventSubscriptions.queue { event, done in
-                guard case .stateUpdated(let state) = event,
-                      state == .poweredOn else { return }
+                guard case .stateUpdated(let state) = event else { return }
 
-                completionHandler()
+                switch state {
+                case .poweredOn:
+                    completionHandler(.success(Void()))
+                case .unauthorized:
+                    completionHandler(.failure(CentralError.unauthorized))
+                case .unsupported:
+                    completionHandler(.failure(CentralError.unavailable))
+                default:
+                    return
+                }
+
                 done()
             }
         }

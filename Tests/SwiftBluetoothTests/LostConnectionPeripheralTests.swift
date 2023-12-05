@@ -6,7 +6,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDiscoverServicesDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
@@ -28,7 +28,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadValueDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -64,7 +64,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testWriteValueDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -100,7 +100,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadStreamDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -133,7 +133,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testSetNotifyDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
@@ -167,7 +167,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testPeripheralSimultaniousDisconnectAndRead() async throws {
         try await withTimeout { [self] in
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()

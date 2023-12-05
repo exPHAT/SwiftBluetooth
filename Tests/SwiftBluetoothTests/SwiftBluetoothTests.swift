@@ -15,7 +15,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
             XCTAssertNotEqual(central.state, .poweredOn)
 
             CBMCentralManagerMock.simulatePowerOn()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
 
             XCTAssertEqual(central.state, .poweredOn)
         }
@@ -27,9 +27,26 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
 
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
 
             XCTAssertEqual(central.state, .poweredOn)
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testAwaitReadyNotAuthorized() async throws {
+        CBMCentralManagerMock.simulateAuthorization(.denied)
+
+        try await withTimeout { [self] in
+            central = CentralManager()
+
+            do {
+                try await central.waitUntilReady()
+
+                XCTFail("Should not continue when permissions are denied")
+            } catch {
+                XCTAssertEqual(error as? CentralError, .unauthorized)
+            }
         }
     }
 
@@ -37,7 +54,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testFindConnectDiscover() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
 
             peripheral = await central.scanForPeripherals().first
 
@@ -76,7 +93,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testReadValue() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -106,7 +123,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testReadWriteValue() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -147,7 +164,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testSubscribeToCharacteristic() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -216,7 +233,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testSubscribeBreakLoop() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -274,7 +291,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testPeripheralDisconnect() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
@@ -290,7 +307,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testConnectedPeripheralTimeout() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals(timeout: 1).first
             try await central.connect(peripheral, timeout: 1)
 
@@ -306,7 +323,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testPeripheralDiscoveryInfo() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
 
             XCTAssertEqual(peripheral.discovery.RSSI, mockPeripheral.proximity.RSSI, accuracy: 15) // 15 is what CBM uses for random deviation
@@ -326,7 +343,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testPeripheralRSSI() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
@@ -340,7 +357,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testDoubleConnectPeripheral() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first
 
             try await central.connect(peripheral, timeout: connectionTimeout)
@@ -354,7 +371,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     func testPeripheralNotConnectedCancel() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
 
             try? await central.cancelPeripheralConnection(peripheral)

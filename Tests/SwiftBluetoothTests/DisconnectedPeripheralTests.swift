@@ -7,7 +7,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     func testScanOnOutOfRangePeripheral() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
 
             mockPeripheral.simulateProximityChange(.outOfRange)
 
@@ -21,7 +21,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     func testConnectTimeout() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
 
             mockPeripheral.simulateProximityChange(.outOfRange)
@@ -40,7 +40,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     func testConnectCancel() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
 
             mockPeripheral.simulateProximityChange(.outOfRange)
@@ -65,7 +65,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     func testReadValueOnDisconnectedPeripheral() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
@@ -105,7 +105,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     func testSetNotifyOnDisconnectedPeripheral() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
-            await central.waitUntilReady()
+            try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
