@@ -3,7 +3,7 @@ import CoreBluetooth
 
 public extension CentralManager {
     func waitUntilReady(completionHandler: @escaping () -> Void) {
-        eventQueue.sync {
+        eventQueue.async { [self] in
             guard state != .poweredOn else {
                 completionHandler()
                 return
@@ -20,7 +20,7 @@ public extension CentralManager {
     }
 
     func connect(_ peripheral: Peripheral, timeout: TimeInterval, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) {
-        eventQueue.sync {
+        eventQueue.async { [self] in
             guard peripheral.state != .connected else {
                 completionHandler(.success(peripheral))
                 return
@@ -46,12 +46,14 @@ public extension CentralManager {
                 done()
             }
 
-            let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
-                task.cancel()
-                completionHandler(.failure(CBError(.connectionTimeout)))
+            if timeout != .infinity {
+                let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
+                    task.cancel()
+                    completionHandler(.failure(CBError(.connectionTimeout)))
+                }
+                timer = timeoutTimer
+                RunLoop.main.add(timeoutTimer, forMode: .default)
             }
-            timer = timeoutTimer
-            RunLoop.main.add(timeoutTimer, forMode: .default)
 
             connect(peripheral, options: options)
         }
@@ -75,12 +77,14 @@ public extension CentralManager {
                 self.centralManager.stopScan()
             }
 
-            if let timeout = timeout {
-                let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
-                    subscription.cancel()
+            if timeout != .infinity {
+                if let timeout = timeout {
+                    let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
+                        subscription.cancel()
+                    }
+                    timer = timeoutTimer
+                    RunLoop.main.add(timeoutTimer, forMode: .default)
                 }
-                timer = timeoutTimer
-                RunLoop.main.add(timeoutTimer, forMode: .default)
             }
 
             centralManager.scanForPeripherals(withServices: services, options: options)
@@ -90,7 +94,7 @@ public extension CentralManager {
     }
 
     func cancelPeripheralConnection(_ peripheral: Peripheral, completionHandler: @escaping (Result<Void, Error>) -> Void) {
-        eventQueue.sync {
+        eventQueue.async { [self] in
             guard connectedPeripherals.contains(peripheral) else {
                 completionHandler(.success(Void()))
                 return

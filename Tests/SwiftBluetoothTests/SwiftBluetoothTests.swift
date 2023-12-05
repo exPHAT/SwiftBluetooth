@@ -303,6 +303,26 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testPeripheralDiscoveryInfo() async throws {
+        try await withTimeout { [self] in
+            central = CentralManager()
+            await central.waitUntilReady()
+            peripheral = await central.scanForPeripherals().first!
+
+            XCTAssertEqual(peripheral.discovery.RSSI, mockPeripheral.proximity.RSSI, accuracy: 15) // 15 is what CBM uses for random deviation
+
+            XCTAssertEqual(peripheral.discovery.advertisementData.isConnectable, true)
+            XCTAssertEqual(peripheral.discovery.advertisementData.localName, mockPeripheral.name)
+            XCTAssertEqual(peripheral.discovery.advertisementData.serviceUUIDs, mockServices.map(\.uuid))
+
+            // Double check that key indexing still works
+            XCTAssertNotNil(peripheral.discovery.advertisementData[CBAdvertisementDataIsConnectable])
+            XCTAssertNotNil(peripheral.discovery.advertisementData[CBAdvertisementDataLocalNameKey])
+            XCTAssertNotNil(peripheral.discovery.advertisementData[CBAdvertisementDataServiceUUIDsKey])
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testPeripheralRSSI() async throws {
         try await withTimeout { [self] in
             central = CentralManager()

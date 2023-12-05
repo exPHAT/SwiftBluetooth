@@ -14,10 +14,31 @@ public extension CentralManager {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     @discardableResult
     func connect(_ peripheral: Peripheral, timeout: TimeInterval, options: [String: Any]? = nil) async throws -> Peripheral {
-        try await withCheckedThrowingContinuation { cont in
-            self.connect(peripheral, timeout: timeout, options: options) { result in
-                cont.resume(with: result)
+        var cancelled = false
+        var continuation: CheckedContinuation<Peripheral, Error>?
+        let cancel = {
+            cancelled = true
+            self.cancelPeripheralConnection(peripheral)
+            continuation?.resume(throwing: CentralError.cancelled)
+        }
+
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { cont in
+                continuation = cont
+
+                if cancelled {
+                    cancel()
+                    return
+                }
+
+                self.connect(peripheral, timeout: timeout, options: options) { result in
+                    guard !cancelled else { return }
+
+                    cont.resume(with: result)
+                }
             }
+        } onCancel: {
+            cancel()
         }
     }
 
@@ -63,14 +84,8 @@ public extension CentralManager {
     func cancelPeripheralConnection(_ peripheral: Peripheral) async throws {
         try await withCheckedThrowingContinuation { cont in
             self.cancelPeripheralConnection(peripheral) { result in
-                switch result {
-                case .success:
-                    cont.resume()
-                case .failure(let error):
-                    cont.resume(throwing: error)
-                }
+                cont.resume(with: result)
             }
         }
-
     }
 }

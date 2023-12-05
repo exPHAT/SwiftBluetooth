@@ -37,6 +37,31 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testConnectCancel() async throws {
+        try await withTimeout { [self] in
+            central = CentralManager()
+            await central.waitUntilReady()
+            peripheral = await central.scanForPeripherals().first!
+
+            mockPeripheral.simulateProximityChange(.outOfRange)
+
+            let task = Task {
+                try await central.connect(peripheral, timeout: .infinity)
+            }
+
+            task.cancel()
+
+            do {
+                let _ = try await task.value
+
+                XCTFail("Should not connect successfully.")
+            } catch {
+                XCTAssertEqual((error as? CentralError), .cancelled)
+            }
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadValueOnDisconnectedPeripheral() async throws {
         try await withTimeout { [self] in
             central = CentralManager()

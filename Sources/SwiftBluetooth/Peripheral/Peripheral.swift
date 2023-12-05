@@ -28,6 +28,8 @@ public class Peripheral: NSObject {
 
     public weak var delegate: PeripheralDelegate?
 
+    public internal(set) var discovery: DiscoveryInfo!
+
     // MARK: - CBPeripheral initializers
     public init(_ cbPeripheral: CBPeripheral) {
         self.cbPeripheral = cbPeripheral
