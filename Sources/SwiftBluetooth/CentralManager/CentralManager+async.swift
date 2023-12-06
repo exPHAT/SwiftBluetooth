@@ -19,7 +19,7 @@ public extension CentralManager {
         let cancel = {
             cancelled = true
             self.cancelPeripheralConnection(peripheral)
-            continuation?.resume(throwing: CentralError.cancelled)
+            continuation?.resume(throwing: CancellationError())
         }
 
         return try await withTaskCancellationHandler {

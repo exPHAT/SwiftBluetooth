@@ -56,7 +56,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
 
                 XCTFail("Should not connect successfully.")
             } catch {
-                XCTAssertEqual((error as? CentralError), .cancelled)
+                XCTAssertNotNil(error as? CancellationError)
             }
         }
     }

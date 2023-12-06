@@ -3,11 +3,11 @@ import CoreBluetooth
 
 extension Peripheral {
     public struct DiscoveryInfo {
-        public var RSSI: Int
+        public var rssi: Int
         public var advertisementData: AdvertisementData
 
-        init(RSSI: NSNumber, advertisementData: [String : Any]) {
-            self.RSSI = Int(truncating: RSSI)
+        init(rssi: NSNumber, advertisementData: [String : Any]) {
+            self.rssi = Int(truncating: rssi)
             self.advertisementData = .init(data: advertisementData)
         }
 
@@ -26,16 +26,16 @@ extension Peripheral {
                 data[CBAdvertisementDataManufacturerDataKey] as? Data
             }
 
-            public var serviceData: [CBUUID : Data]? {
-                data[CBAdvertisementDataServiceDataKey] as? [CBUUID : Data]
+            public var serviceData: [CBUUID : Data] {
+                data[CBAdvertisementDataServiceDataKey] as? [CBUUID : Data] ?? [:]
             }
 
-            public var serviceUUIDs: [CBUUID]? {
-                data[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID]
+            public var serviceUUIDs: [CBUUID] {
+                data[CBAdvertisementDataServiceUUIDsKey] as? [CBUUID] ?? []
             }
 
-            public var overflowServiceUUIDs: [CBUUID]? {
-                data[CBAdvertisementDataOverflowServiceUUIDsKey] as? [CBUUID]
+            public var overflowServiceUUIDs: [CBUUID] {
+                data[CBAdvertisementDataOverflowServiceUUIDsKey] as? [CBUUID] ?? []
             }
 
             public var txPowerLevel: Int? {
@@ -50,8 +50,8 @@ extension Peripheral {
                 return Bool(truncating: value)
             }
 
-            public var solicitedServiceUUIDs: [CBUUID]? {
-                data[CBAdvertisementDataSolicitedServiceUUIDsKey] as? [CBUUID]
+            public var solicitedServiceUUIDs: [CBUUID] {
+                data[CBAdvertisementDataSolicitedServiceUUIDsKey] as? [CBUUID] ?? []
             }
         }
     }

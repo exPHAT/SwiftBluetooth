@@ -55,7 +55,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
-        peripheral.discovery = .init(RSSI: RSSI, advertisementData: advertisementData)
+        peripheral.discovery = .init(rssi: RSSI, advertisementData: advertisementData)
 
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.discovered(peripheral, advertisementData, RSSI))
