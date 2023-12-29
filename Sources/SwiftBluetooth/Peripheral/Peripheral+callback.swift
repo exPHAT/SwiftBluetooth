@@ -2,132 +2,245 @@ import Foundation
 import CoreBluetooth
 
 public extension Peripheral {
-    func readValue(for characteristic: CBCharacteristic, completionHandler: @escaping (Data) -> Void) {
-        responseMap.queue(key: characteristic.uuid) { data, done in
-            completionHandler(data)
-            done()
-        }
+    func readValue(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Data, Error>) -> Void) {
+        eventQueue.async { [self] in
+            guard state == .connected else {
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
+                return
+            }
 
-        readValue(for: characteristic)
+            var task1: AsyncSubscription<Result<Data, Error>>?
+            var task2: AsyncSubscription<PeripheralEvent>?
+
+            task1 = responseMap.queue(key: characteristic.uuid) { result, done in
+                completionHandler(result)
+                task2?.cancel()
+                done()
+            }
+
+            task2 = eventSubscriptions.queue { event, done in
+                guard case .didDisconnect(let error) = event else { return }
+
+                completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                task1?.cancel()
+                done()
+            }
+
+            readValue(for: characteristic)
+        }
     }
 
-    func readValue(for characteristic: Characteristic, completionHandler: @escaping (Data) -> Void) {
+    func readValue(for characteristic: Characteristic, completionHandler: @escaping (Result<Data, Error>) -> Void) {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { return }
 
         readValue(for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
-    func readValue(for descriptor: CBDescriptor, completionHandler: @escaping (Any?) -> Void) {
-        descriptorMap.queue(key: descriptor.uuid) { value, done in
-            completionHandler(value)
-            done()
-        }
+    func readValue(for descriptor: CBDescriptor, completionHandler: @escaping (Result<Any?, Error>) -> Void) {
+        eventQueue.async { [self] in
+            guard state == .connected else {
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
+                return
+            }
 
-        readValue(for: descriptor)
+            var task1: AsyncSubscription<Result<Any?, Error>>?
+            var task2: AsyncSubscription<PeripheralEvent>?
+
+            task1 = descriptorMap.queue(key: descriptor.uuid) { result, done in
+                completionHandler(result)
+                task2?.cancel()
+                done()
+            }
+
+            task2 = eventSubscriptions.queue { event, done in
+                guard case .didDisconnect(let error) = event else { return }
+
+                completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                task1?.cancel()
+                done()
+            }
+
+            readValue(for: descriptor)
+        }
     }
 
     func readValues(for characteristic: CBCharacteristic, onValueUpdate: @escaping (Data) -> Void) -> CancellableTask {
-        let valueSubscription = responseMap.queue(key: characteristic.uuid) { data, _ in
-            onValueUpdate(data)
-        } completion: { [weak self] in
-            guard let self = self else { return }
+        eventQueue.sync {
+            var task1: AsyncSubscription<Result<Data, Error>>?
 
-            let shouldNotify = self.notifyingState.removeInternal(forKey: characteristic.uuid)
-            // We should only stop notifying when we have no internal handlers waiting on it
-            // and the last external `setNotifyValue` was set to false
-            //
-            // NOTE: External notifying tracking is currently disabled
-            self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
+            let task2 = eventSubscriptions.queue { event, done in
+                if case .didDisconnect = event {
+                    done()
+                    return
+                }
+
+                guard case .updateNotificationState(let foundCharacteristic, let error) = event,
+                      foundCharacteristic.uuid == characteristic.uuid,
+                      (!foundCharacteristic.isNotifying || error != nil) else { return }
+
+                done()
+            } completion: {
+                task1?.cancel()
+            }
+
+            task1 = responseMap.queue(key: characteristic.uuid) { result, done in
+                switch result {
+                case .success(let data):
+                    onValueUpdate(data)
+                case .failure:
+                    task2.cancel()
+                    done()
+                }
+            } completion: { [weak self] in
+                guard let self = self else { return }
+
+                let shouldNotify = self.notifyingState.removeInternal(forKey: characteristic.uuid)
+                // We should only stop notifying when we have no internal handlers waiting on it
+                // and the last external `setNotifyValue` was set to false
+                //
+                // NOTE: External notifying tracking is currently disabled
+                self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
+            }
+
+            notifyingState.addInternal(forKey: characteristic.uuid)
+            cbPeripheral.setNotifyValue(true, for: characteristic)
+
+            return task2
         }
-
-        let eventSubscription = eventSubscriptions.queue { event, done in
-            guard case .updateNotificationState(let foundCharacteristic, _) = event,
-                  foundCharacteristic.uuid == characteristic.uuid,
-                  !foundCharacteristic.isNotifying else { return }
-
-            done()
-        } completion: {
-            valueSubscription.cancel()
-        }
-
-        notifyingState.addInternal(forKey: characteristic.uuid)
-        cbPeripheral.setNotifyValue(true, for: characteristic)
-
-        return eventSubscription
     }
 
-    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping () -> Void) {
-        if type == .withResponse {
-            writeMap.queue(key: characteristic.uuid) { _, done in
-                completionHandler()
-                done()
+    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping (Error?) -> Void) {
+        eventQueue.async { [self] in
+            guard state == .connected else {
+                completionHandler(CBError(.peripheralDisconnected))
+                return
+            }
+
+            if type == .withResponse {
+                var task1: AsyncSubscription<Error?>?
+                var task2: AsyncSubscription<PeripheralEvent>?
+
+                task1 = writeMap.queue(key: characteristic.uuid) { error, done in
+                    completionHandler(error)
+                    task2?.cancel()
+                    done()
+                }
+
+                task2 = eventSubscriptions.queue { event, done in
+                    guard case .didDisconnect(let error) = event else { return }
+
+                    completionHandler(error ?? CBError(.peripheralDisconnected))
+                    task1?.cancel()
+                    done()
+                }
+            }
+
+            writeValue(data, for: characteristic, type: type)
+
+            if type == .withoutResponse {
+                completionHandler(nil)
             }
         }
-
-        writeValue(data, for: characteristic, type: type)
-
-        if type == .withoutResponse {
-            completionHandler()
-        }
     }
 
-    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping () -> Void) {
-        writeMap.queue(key: descriptor.uuid) { _, done in
-            completionHandler()
-            done()
-        }
+    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping (Error?) -> Void) {
+        eventQueue.async { [self] in
+            writeMap.queue(key: descriptor.uuid) { error, done in
+                completionHandler(error)
+                done()
+            }
 
-        writeValue(data, for: descriptor)
+            writeValue(data, for: descriptor)
+        }
     }
 
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping (Result<[CBService], Error>) -> Void) {
-        eventSubscriptions.queue { event, done in
-            guard case .discoveredServices(let services, let error) = event else { return }
-            defer { done() }
-
-            if let error = error {
-                completionHandler(.failure(error))
+        eventQueue.async { [self] in
+            guard state == .connected else {
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
                 return
             }
 
-            completionHandler(.success(services))
-        }
+            eventSubscriptions.queue { event, done in
+                if case .didDisconnect(let error) = event {
+                    completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                    done()
+                    return
+                }
 
-        discoverServices(serviceUUIDs)
+                guard case .discoveredServices(let services, let error) = event else { return }
+                defer { done() }
+
+                if let error = error {
+                    completionHandler(.failure(error))
+                    return
+                }
+
+                completionHandler(.success(services))
+            }
+
+            discoverServices(serviceUUIDs)
+        }
     }
 
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
-        eventSubscriptions.queue { event, done in
-            guard case .discoveredCharacteristics(let forService, let characteristics, let error) = event,
-                  forService.uuid == service.uuid else { return }
-            defer { done() }
-
-            if let error = error {
-                completionHandler(.failure(error))
+        eventQueue.async { [self] in
+            guard state == .connected else {
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
                 return
             }
 
-            completionHandler(.success(characteristics))
-        }
+            eventSubscriptions.queue { event, done in
+                if case .didDisconnect(let error) = event {
+                    completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                    done()
+                    return
+                }
 
-        discoverCharacteristics(characteristicUUIDs, for: service)
+                guard case .discoveredCharacteristics(let forService, let characteristics, let error) = event,
+                      forService.uuid == service.uuid else { return }
+                defer { done() }
+
+                if let error = error {
+                    completionHandler(.failure(error))
+                    return
+                }
+
+                completionHandler(.success(characteristics))
+            }
+
+            discoverCharacteristics(characteristicUUIDs, for: service)
+        }
     }
 
     func discoverDescriptors(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) {
-        eventSubscriptions.queue { event, done in
-            guard case .discoveredDescriptors(let forCharacteristic, let descriptors, let error) = event,
-                  forCharacteristic.uuid == characteristic.uuid else { return }
-            defer { done() }
-
-            if let error = error {
-                completionHandler(.failure(error))
+        eventQueue.async { [self] in
+            guard state == .connected else {
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
                 return
             }
 
-            completionHandler(.success(descriptors))
-        }
+            eventSubscriptions.queue { event, done in
+                if case .didDisconnect(let error) = event {
+                    completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                    done()
+                    return
+                }
 
-        discoverDescriptors(for: characteristic)
+                guard case .discoveredDescriptors(let forCharacteristic, let descriptors, let error) = event,
+                      forCharacteristic.uuid == characteristic.uuid else { return }
+                defer { done() }
+
+                if let error = error {
+                    completionHandler(.failure(error))
+                    return
+                }
+
+                completionHandler(.success(descriptors))
+            }
+
+            discoverDescriptors(for: characteristic)
+        }
     }
 
     func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) {
@@ -141,28 +254,40 @@ public extension Peripheral {
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
-//        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
-        let shouldNotify = value
+        eventQueue.async { [self] in
+            let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
 
-        guard characteristic.isNotifying != shouldNotify else {
-            completionHandler(.success(value))
-            return
-        }
-
-        eventSubscriptions.queue { event, done in
-            guard case .updateNotificationState(let forCharacteristic, let error) = event,
-                  forCharacteristic.uuid == characteristic.uuid else { return }
-            defer { done() }
-
-            if let error = error {
-                completionHandler(.failure(error))
+            guard state == .connected else {
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
                 return
             }
 
-            completionHandler(.success(characteristic.isNotifying))
-        }
+            guard characteristic.isNotifying != shouldNotify else {
+                completionHandler(.success(value))
+                return
+            }
 
-        cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
+            eventSubscriptions.queue { event, done in
+                if case .didDisconnect(let error) = event {
+                    completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                    done()
+                    return
+                }
+
+                guard case .updateNotificationState(let forCharacteristic, let error) = event,
+                      forCharacteristic.uuid == characteristic.uuid else { return }
+                defer { done() }
+
+                if let error = error {
+                    completionHandler(.failure(error))
+                    return
+                }
+
+                completionHandler(.success(characteristic.isNotifying))
+            }
+
+            cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
+        }
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {
@@ -177,7 +302,6 @@ public extension Peripheral {
         setNotifyValue(value, for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
-
     func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) {
         guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 
@@ -185,37 +309,41 @@ public extension Peripheral {
     }
 
     func readRSSI(completionHandler: @escaping (Result<NSNumber, Error>) -> Void) {
-        eventSubscriptions.queue { event, done in
-            guard case .readRSSI(let RSSI, let error) = event else { return }
-            defer { done() }
+        eventQueue.async { [self] in
+            eventSubscriptions.queue { event, done in
+                guard case .readRSSI(let RSSI, let error) = event else { return }
+                defer { done() }
 
-            if let error = error {
-                completionHandler(.failure(error))
-            } else {
-                completionHandler(.success(RSSI))
+                if let error = error {
+                    completionHandler(.failure(error))
+                } else {
+                    completionHandler(.success(RSSI))
+                }
             }
-        }
 
-        readRSSI()
+            readRSSI()
+        }
     }
 
     #if !os(macOS)
     @available(iOS 11.0, tvOS 11.0, watchOS 4.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM, completionHandler: @escaping (Result<CBL2CAPChannel, Error>) -> Void) {
-        eventSubscriptions.queue { event, done in
-            guard case .didOpenL2CAPChannel(let channel, let error) = event else { return }
-            defer { done() }
+        eventQueue.async { [self] in
+            eventSubscriptions.queue { event, done in
+                guard case .didOpenL2CAPChannel(let channel, let error) = event else { return }
+                defer { done() }
 
-            if let error = error {
-                completionHandler(.failure(error))
-            } else if let channel = channel {
-                completionHandler(.success(channel))
-            } else {
-                completionHandler(.failure(PeripheralError.unknown))
+                if let error = error {
+                    completionHandler(.failure(error))
+                } else if let channel = channel {
+                    completionHandler(.success(channel))
+                } else {
+                    completionHandler(.failure(PeripheralError.unknown))
+                }
             }
-        }
 
-        openL2CAPChannel(PSM)
+            openL2CAPChannel(PSM)
+        }
     }
     #endif
 }

@@ -44,7 +44,7 @@ typealias CBPeripheralDelegate     = SwiftBluetooth.PeripheralDelegate
 
 ```swift
 let central = CentralManager()
-await central.waitUntilReady()
+try await central.waitUntilReady()
 
 for await peripheral in await central.scanForPeripherals() {
   print("Discovered:", peripheral.name ?? "Unknown")
@@ -60,30 +60,27 @@ extension Characteristic {
 }
 
 // Use those characteristics later on your peripheral
-await myPeripheral.readValue(for: .someCharacteristic)
+try await myPeripheral.readValue(for: .someCharacteristic)
 ```
 
 #### Discover, connect, and read characteristic
 
 ```swift
 let central = CentralManager()
-await central.waitUntilReady()
+try await central.waitUntilReady()
 
 // Find and connect to the first peripheral
 let peripheral = await central.scanForPeripherals(withServices: [myService]).first!
-try! await central.connect(peripheral)
+try await central.connect(peripheral, timeout: connectionTimeout)
 defer { central.cancelPeripheralConnection(peripheral) }
 
 // Discover services and characteristics
-let service = try! await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService })!
-let _ = try! await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
+let service = try await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService })!
+let _ = try await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
 
 // Read characteristic value!
-print("Got value:", await peripheral.readValue(for: .someCharacteristic))
+print("Got value:", try await peripheral.readValue(for: .someCharacteristic))
 ```
-
-> **Note**
-Force-unwrapping is only used for brevity and is not recommended.
 
 #### Callbacks
 
