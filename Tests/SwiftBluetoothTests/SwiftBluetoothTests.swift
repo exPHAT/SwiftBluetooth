@@ -2,6 +2,10 @@ import XCTest
 @testable import CoreBluetoothMock
 @testable import SwiftBluetoothMock
 
+extension Characteristic {
+    static let firstChar = Self("00000000-0000-0000-0001-000000000001")
+}
+
 final class SwiftBluetoothTests: CentralPeripheralTestCase {
     var exp: XCTestExpectation!
 
@@ -161,6 +165,21 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testReadStaticCharacteristic() async throws {
+        try await withTimeout { [self] in
+            central = CentralManager()
+            try await central.waitUntilReady()
+            peripheral = await central.scanForPeripherals().first!
+            try await central.connect(peripheral, timeout: connectionTimeout)
+            let services = try await peripheral.discoverServices()
+            let _ = try await peripheral.discoverCharacteristics(for: services[0])
+
+            let value = try await peripheral.readValue(for: .firstChar)
+            XCTAssertEqual(value, Data([0x00]))
+        }
+    }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testSubscribeToCharacteristic() async throws {
         try await withTimeout { [self] in
             central = CentralManager()
@@ -202,7 +221,7 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
             for await value in stream! {
                 switch (count, value[0]) {
                 case (0, 0x10), (1, 0x11), (2, 0x12): break
-                default: XCTAssert(false)
+                default: XCTFail("Incorrect arguments returned")
                 }
 
                 count += 1

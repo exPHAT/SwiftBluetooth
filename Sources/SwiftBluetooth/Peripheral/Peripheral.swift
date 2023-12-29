@@ -30,6 +30,15 @@ public class Peripheral: NSObject {
 
     public internal(set) var discovery: DiscoveryInfo!
 
+    public subscript(dynamicMember member: KeyPath<Characteristic.Type, Characteristic>) -> CBCharacteristic? {
+        let char = Characteristic.self[keyPath: member]
+        return knownCharacteristics[char.uuid]
+    }
+
+    public func characteristic(for char: Characteristic) -> CBCharacteristic? {
+        knownCharacteristics[char.uuid]
+    }
+
     // MARK: - CBPeripheral initializers
     public init(_ cbPeripheral: CBPeripheral) {
         self.cbPeripheral = cbPeripheral
@@ -79,8 +88,7 @@ public extension Peripheral {
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) {
         // Keep track of if the user wants notifying values outside of our subscriptions
-//        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
-        let shouldNotify = value
+        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
 
         cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
     }

@@ -255,8 +255,7 @@ public extension Peripheral {
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) {
         eventQueue.async { [self] in
-            //        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
-            let shouldNotify = value
+            let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
 
             guard state == .connected else {
                 completionHandler(.failure(CBError(.peripheralDisconnected)))

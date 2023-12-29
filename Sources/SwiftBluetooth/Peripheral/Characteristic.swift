@@ -1,7 +1,7 @@
 import Foundation
 import CoreBluetooth
 
-public struct Characteristic: Hashable, Equatable, ExpressibleByStringLiteral {
+public struct Characteristic: Hashable, Equatable, ExpressibleByStringLiteral, Sendable {
     public var uuid: CBUUID
 
     init(_ uuidString: String) {
