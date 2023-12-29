@@ -11,9 +11,11 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     // MARK: - CBCentralManagerDelegate conformance
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         guard let parent = self.parent else { return }
+
+        parent.delegate?.centralManagerDidUpdateState(parent)
+
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.stateUpdated(parent.state))
-            parent.delegate?.centralManagerDidUpdateState(parent)
         }
     }
 
@@ -21,10 +23,11 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 
+        parent.connectedPeripherals.insert(peripheral)
+        parent.delegate?.centralManager(parent, didConnect: peripheral)
+
         parent.eventQueue.async {
-            parent.connectedPeripherals.insert(peripheral)
             parent.eventSubscriptions.recieve(.connected(peripheral))
-            parent.delegate?.centralManager(parent, didConnect: peripheral)
         }
     }
 
@@ -32,13 +35,13 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 
+        parent.connectedPeripherals.remove(peripheral)
+        parent.delegate?.centralManager(parent, didDisconnectPeripheral: peripheral, error: error)
+        parent.removePeripheral(peripheral.cbPeripheral)
+
         parent.eventQueue.async {
-            parent.connectedPeripherals.remove(peripheral)
             parent.eventSubscriptions.recieve(.disconnected(peripheral, error))
             peripheral.eventSubscriptions.recieve(.didDisconnect(error))
-            parent.delegate?.centralManager(parent, didDisconnectPeripheral: peripheral, error: error)
-
-            parent.removePeripheral(peripheral.cbPeripheral)
         }
     }
 
@@ -46,9 +49,10 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 
+        parent.delegate?.centralManager(parent, didFailToConnect: peripheral, error: error)
+
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.failToConnect(peripheral, error))
-            parent.delegate?.centralManager(parent, didFailToConnect: peripheral, error: error)
         }
     }
 
@@ -57,18 +61,20 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         let peripheral = parent.peripheral(peripheral)
         peripheral.discovery = .init(rssi: RSSI, advertisementData: advertisementData)
 
+        parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
+
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.discovered(peripheral, advertisementData, RSSI))
-            parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
         }
     }
 
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         guard let parent = parent else { return }
 
+        parent.delegate?.centralManager(parent, willRestoreState: dict)
+
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.restoreState(dict))
-            parent.delegate?.centralManager(parent, willRestoreState: dict)
         }
     }
 
@@ -77,18 +83,14 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 
-        parent.eventQueue.async {
-            parent.delegate?.centralManager(parent, connectionEventDidOccur: event, for: peripheral)
-        }
+        parent.delegate?.centralManager(parent, connectionEventDidOccur: event, for: peripheral)
     }
 
     func centralManager(_ central: CBCentralManager, didUpdateANCSAuthorizationFor peripheral: CBPeripheral) {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 
-        parent.eventQueue.async {
-            parent.delegate?.centralManager(parent, didUpdateANCSAuthorizationFor: peripheral)
-        }
+        parent.delegate?.centralManager(parent, didUpdateANCSAuthorizationFor: peripheral)
     }
     #endif
 }
