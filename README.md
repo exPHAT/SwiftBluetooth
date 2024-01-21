@@ -17,7 +17,6 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 - [x] Thread safe
 - [x] Zero inherited dependencies
 - [x] Tested with included `SwiftBluetoothMock` library
-- [ ] SwiftUI support
 
 ## Examples
 
@@ -38,7 +37,7 @@ let peripheral = await central.scanForPeripherals(withServices: [myService]).fir
 try await central.connect(peripheral, timeout: connectionTimeout)
 
 // Discover services and characteristics
-let service = try await peripheral.discoverServices([myService]).first(where: { $0.uuid == myService })!
+let service = try await peripheral.discoverServices([myService]).first!
 let _ = try await peripheral.discoverCharacteristics([.someCharacteristic], for: service)
 
 // Read data directly from your characteristic
@@ -49,7 +48,7 @@ central.cancelPeripheralConnection(peripheral)
 
 #### Callbacks
 
-Most of the stock CoreBluetooth methods now have an additional new signature that takes a completionHandler in case you're not using Swift Concurrency.
+Stock CoreBluetooth methods now also have an additional overload that takes a completionHandler for projects not using Swift Concurrency.
 
 ```swift
 central.connect(peripheral) { result in
@@ -61,16 +60,13 @@ central.connect(peripheral) { result in
   // Connected!
 }
 ```
-> Methods often now have 3 overloads. One marked `async`, one with a `completionHandler`, and the stock CoreBluetooth verision. Meaning you can choose whichever is most convienient.
+> Methods often now have 3 overloads. One marked `async`, one with a `completionHandler`, and the original CoreBluetooth verision. Meaning you can choose whichever is most convienient at the time.
 
 #### Stream discovered peripherals
 
-Many operations (like scanning) conform to `AsyncStream`, meaning you can use for-await-in loops to iterate over new items.
+Some operations (like scanning) conform to `AsyncStream`, meaning you can use for-await-in loops to iterate over new items.
 
 ```swift
-let central = CentralManager()
-try await central.waitUntilReady()
-
 for await peripheral in await central.scanForPeripherals() {
   print("Discovered:", peripheral.name ?? "Unknown")
 }
