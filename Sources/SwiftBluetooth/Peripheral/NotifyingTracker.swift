@@ -12,7 +12,9 @@ internal final class NotifyingTracker<Key> where Key: Hashable {
 
         external[key] = value
 
-        return value || (`internal`[key] ?? 0) > 0
+        // Calling external(false) should return false so there
+        // is no ambiguity about if an unsubscribe actually happened
+        return value
     }
 
     func addInternal(forKey key: Key) {

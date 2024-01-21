@@ -36,8 +36,8 @@ import CoreBluetoothMock
 // using CBCentralManagerFactory, instad of just creating a CBCentralManager.
 
 // disabled for Xcode 12.5 beta
-//typealias CBPeer                          = CBMPeer
-//typealias CBAttribute                     = CBMAttribute
+// typealias CBPeer                          = CBMPeer
+// typealias CBAttribute                     = CBMAttribute
 public typealias CBCentralManagerFactory         = CBMCentralManagerFactory
 public typealias CBUUID                          = CBMUUID
 public typealias CBError                         = CBMError
