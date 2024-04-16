@@ -37,7 +37,12 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
 
         parent.connectedPeripherals.remove(peripheral)
         parent.delegate?.centralManager(parent, didDisconnectPeripheral: peripheral, error: error)
-        parent.removePeripheral(peripheral.cbPeripheral)
+
+        // Not deleting peripheral instance for now. Might cause some issues for
+        // people retaining a reference to a disconnected peripheral that later reconnects.
+        // Maybe change this?
+        //
+        // parent.removePeripheral(peripheral.cbPeripheral)
 
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.disconnected(peripheral, error))
