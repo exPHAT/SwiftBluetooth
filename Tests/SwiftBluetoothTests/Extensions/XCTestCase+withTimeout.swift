@@ -40,6 +40,7 @@ extension XCTestCase {
                 let error = TimedOutError(file: file, line: line)
 //                let issue = XCTIssue(type: .assertionFailure, compactDescription: "Test timed out", associatedError: error)
 //                XCTAssert(false)
+                XCTFail("Test Timed Out")
                 cont.resume(throwing: error)
             }
         }

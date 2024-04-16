@@ -5,10 +5,11 @@ public class Peripheral: NSObject {
     private(set) var cbPeripheral: CBPeripheral
     private lazy var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
 
-    internal var responseMap = AsyncSubscriptionQueueMap<CBUUID, Data>()
-    internal var writeMap = AsyncSubscriptionQueueMap<CBUUID, Void>()
-    internal var descriptorMap = AsyncSubscriptionQueueMap<CBUUID, Any?>()
-    internal var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>()
+    internal let eventQueue = DispatchQueue(label: "peripheral-event-queue")
+    internal lazy var responseMap = AsyncSubscriptionQueueMap<CBUUID, Result<Data, Error>>(eventQueue)
+    internal lazy var writeMap = AsyncSubscriptionQueueMap<CBUUID, Error?>(eventQueue)
+    internal lazy var descriptorMap = AsyncSubscriptionQueueMap<CBUUID, Result<Any?, Error>>(eventQueue)
+    internal lazy var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>(eventQueue)
 
     internal var knownCharacteristics: [CBUUID: CBCharacteristic] = [:]
 
@@ -25,7 +26,18 @@ public class Peripheral: NSObject {
     public var acnsAuthorized: Bool { cbPeripheral.ancsAuthorized }
     #endif
 
-    public var delegate: PeripheralDelegate?
+    public weak var delegate: PeripheralDelegate?
+
+    public internal(set) var discovery: DiscoveryInfo!
+
+    public subscript(dynamicMember member: KeyPath<Characteristic.Type, Characteristic>) -> CBCharacteristic? {
+        let char = Characteristic.self[keyPath: member]
+        return knownCharacteristics[char.uuid]
+    }
+
+    public func characteristic(for char: Characteristic) -> CBCharacteristic? {
+        knownCharacteristics[char.uuid]
+    }
 
     // MARK: - CBPeripheral initializers
     public init(_ cbPeripheral: CBPeripheral) {
@@ -76,8 +88,7 @@ public extension Peripheral {
 
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) {
         // Keep track of if the user wants notifying values outside of our subscriptions
-//        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
-        let shouldNotify = value
+        let shouldNotify = notifyingState.setExternal(value, forKey: characteristic.uuid)
 
         cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
     }

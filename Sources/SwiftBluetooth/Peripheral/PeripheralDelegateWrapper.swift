@@ -42,8 +42,10 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
         guard let parent = parent else { return }
 
-        if let value = characteristic.value {
-            parent.responseMap.recieve(key: characteristic.uuid, withValue: value)
+        if let error {
+            parent.responseMap.recieve(key: characteristic.uuid, withValue: .failure(error))
+        } else if let value = characteristic.value {
+            parent.responseMap.recieve(key: characteristic.uuid, withValue: .success(value))
         }
 
         parent.delegate?.peripheral(parent, didUpdateValueFor: characteristic, error: error)
@@ -52,19 +54,26 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor descriptor: CBDescriptor, error: Error?) {
         guard let parent = parent else { return }
 
-        parent.descriptorMap.recieve(key: descriptor.uuid, withValue: descriptor.value)
+        if let error {
+            parent.descriptorMap.recieve(key: descriptor.uuid, withValue: .failure(error))
+        } else {
+            parent.descriptorMap.recieve(key: descriptor.uuid, withValue: .success(descriptor.value))
+        }
+
         parent.delegate?.peripheral(parent, didUpdateValueFor: descriptor, error: error)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor characteristic: CBCharacteristic, error: Error?) {
         guard let parent = parent else { return }
-        parent.writeMap.recieve(key: characteristic.uuid, withValue: Void())
+
+        parent.writeMap.recieve(key: characteristic.uuid, withValue: error)
         parent.delegate?.peripheral(parent, didWriteValueFor: characteristic, error: error)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {
         guard let parent = parent else { return }
-        parent.writeMap.recieve(key: descriptor.uuid, withValue: Void())
+
+        parent.writeMap.recieve(key: descriptor.uuid, withValue: error)
         parent.delegate?.peripheral(parent, didWriteValueFor: descriptor, error: error)
     }
 
