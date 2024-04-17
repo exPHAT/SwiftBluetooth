@@ -139,4 +139,23 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
             XCTAssertFalse(mockPeripheral.isConnected)
         }
     }
+
+    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+    func testAccessDiscoveryDataAfterDisconnect() async throws {
+        try await withTimeout { [self] in
+            central = CentralManager()
+            try await central.waitUntilReady()
+            peripheral = await central.scanForPeripherals().first!
+            try await central.connect(peripheral, timeout: connectionTimeout)
+
+            // Disconnect to test if the internal reference is dropped (it should not)
+            try await central.cancelPeripheralConnection(peripheral)
+            XCTAssertTrue(peripheral.state == .disconnected)
+
+            // Request a new reference (should be the same as `peripheral`)
+            let newPeripheralReference = try XCTUnwrap(central.retrievePeripherals(withIdentifiers: [peripheral.identifier]).first)
+            XCTAssertNotNil(newPeripheralReference.discovery)
+            XCTAssert(newPeripheralReference === peripheral) // Note: reference comparison
+        }
+    }
 }
