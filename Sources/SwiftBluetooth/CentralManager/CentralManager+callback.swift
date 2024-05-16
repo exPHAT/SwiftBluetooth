@@ -1,7 +1,7 @@
 import Foundation
 import CoreBluetooth
 
-public struct ScanResult {
+public struct PeripheralScanResult {
     let peripheral: Peripheral
     let advertisementData: [String: Any]
     let rssi: NSNumber
@@ -84,13 +84,13 @@ public extension CentralManager {
         }
     }
 
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (ScanResult) -> Void) -> CancellableTask {
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (PeripheralScanResult) -> Void) -> CancellableTask {
         eventQueue.sync {
             var timer: Timer?
             let subscription = eventSubscriptions.queue { event, done in
                 switch event {
                 case .discovered(let peripheral, let advData, let rssi):
-                    onPeripheralFound(ScanResult(peripheral: peripheral, advertisementData: advData, rssi: rssi))
+                    onPeripheralFound(PeripheralScanResult(peripheral: peripheral, advertisementData: advData, rssi: rssi))
                 case .stopScan:
                     done()
                 default:
