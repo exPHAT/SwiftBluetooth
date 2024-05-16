@@ -2,9 +2,9 @@ import Foundation
 import CoreBluetooth
 
 public struct PeripheralScanResult {
-    let peripheral: Peripheral
-    let advertisementData: [String: Any]
-    let rssi: NSNumber
+    public let peripheral: Peripheral
+    public let advertisementData: [String: Any]
+    public let rssi: NSNumber
 }
 
 public extension CentralManager {
