@@ -1,6 +1,12 @@
 import Foundation
 import CoreBluetooth
 
+public struct ScanResult {
+    let peripheral: Peripheral
+    let advertisementData: [String: Any]
+    let rssi: NSNumber
+}
+
 public extension CentralManager {
     func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) {
         eventQueue.async { [self] in
@@ -78,13 +84,13 @@ public extension CentralManager {
         }
     }
 
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (ScanResult) -> Void) -> CancellableTask {
         eventQueue.sync {
             var timer: Timer?
             let subscription = eventSubscriptions.queue { event, done in
                 switch event {
-                case .discovered(let peripheral, _, _):
-                    onPeripheralFound(peripheral)
+                case .discovered(let peripheral, let advData, let rssi):
+                    onPeripheralFound(ScanResult(peripheral: peripheral, advertisementData: advData, rssi: rssi))
                 case .stopScan:
                     done()
                 default:
