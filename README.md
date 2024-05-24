@@ -13,7 +13,7 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 - [x] Alternate callback-based API for codebases not using Swift Concurrency
 - [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
 - [x] Easy await-ing of `CentralManager` state
-- [x] Staticly typed characteristics
+- [x] Statically typed characteristics
 - [x] Thread safe
 - [x] Zero inherited dependencies
 - [x] Tested with included `SwiftBluetoothMock` library
@@ -60,7 +60,7 @@ central.connect(peripheral) { result in
   // Connected!
 }
 ```
-> Methods often now have 3 overloads. One marked `async`, one with a `completionHandler`, and the original CoreBluetooth verision. Meaning you can choose whichever is most convienient at the time.
+> Methods often now have 3 overloads. One marked `async`, one with a `completionHandler`, and the original CoreBluetooth version. Meaning you can choose whichever is most convenient at the time.
 
 #### Stream discovered peripherals
 
@@ -74,7 +74,7 @@ for await peripheral in await central.scanForPeripherals() {
 
 #### Defining characteristics
 
-Characteristics can be staticly defined on the stock `Characteristic` type, which removes the burden of keeping track of `CBCharacteristic` instances around your app.
+Characteristics can be statically defined on the stock `Characteristic` type, which removes the burden of keeping track of `CBCharacteristic` instances around your app.
 
 ```swift
 extension Characteristic {
@@ -88,7 +88,7 @@ try await myPeripheral.readValue(for: .someCharacteristic)
 
 #### Watching with callbacks
 
-Peristent tasks return a `CancellableTask` that needs to be cancelled when you're done.
+Persistent tasks return a `CancellableTask` that needs to be cancelled when you're done.
 
 ```swift
 let task = central.scanForPeripherals { peripheral in

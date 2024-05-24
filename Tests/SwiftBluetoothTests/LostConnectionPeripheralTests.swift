@@ -187,7 +187,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
 
             XCTAssertNil(characteristic.value)
 
-            // TODO: Break this out into a seperate AsyncSubscriptionQueue test?
+            // TODO: Break this out into a separate AsyncSubscriptionQueue test?
             // Will also need to test that SwiftBluetooth.Peripheral implements a shared DispatchQueue (like this test is doing)
             var ran = 0
             let exp = XCTestExpectation()
