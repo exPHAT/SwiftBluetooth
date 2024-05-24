@@ -165,7 +165,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func testPeripheralSimultaniousDisconnectAndRead() async throws {
+    func testPeripheralSimultaneousDisconnectAndRead() async throws {
         try await withTimeout { [self] in
             try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
