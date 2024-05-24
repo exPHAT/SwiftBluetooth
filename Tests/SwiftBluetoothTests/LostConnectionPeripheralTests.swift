@@ -196,7 +196,8 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
                 XCTAssertEqual(0, ran)
                 ran += 1
             }
-            peripheral.responseMap.recieve(key: characteristic.uuid, withValue: .success(.init([0xFF])))
+
+            peripheral.responseMap.receive(key: characteristic.uuid, withValue: .success(.init([0xFF])))
             peripheral.eventSubscriptions.receive(.didDisconnect(nil))
 
             #if swift(>=5.8)

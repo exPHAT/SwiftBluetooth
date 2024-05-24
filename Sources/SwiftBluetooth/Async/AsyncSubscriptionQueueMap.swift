@@ -33,6 +33,20 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
         return item.queue(block: block, completion: completion)
     }
 
+    func receive(key: Key, withValue value: Value) {
+        dispatchQueue.async {
+            guard let queue = self.items[key] else { return }
+
+            queue.receive(value)
+        }
+    }
+}
+
+// MARK: Deprecated
+
+extension AsyncSubscriptionQueueMap {
+
+    @available(*, deprecated, renamed: "receive")
     func recieve(key: Key, withValue value: Value) {
         dispatchQueue.async {
             guard let queue = self.items[key] else { return }
@@ -40,4 +54,5 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
             queue.receive(value)
         }
     }
+
 }
