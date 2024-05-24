@@ -37,7 +37,7 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
         dispatchQueue.async {
             guard let queue = self.items[key] else { return }
 
-            queue.recieve(value)
+            queue.receive(value)
         }
     }
 }

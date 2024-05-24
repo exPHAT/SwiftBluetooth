@@ -197,7 +197,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
                 ran += 1
             }
             peripheral.responseMap.recieve(key: characteristic.uuid, withValue: .success(.init([0xFF])))
-            peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
+            peripheral.eventSubscriptions.receive(.didDisconnect(nil))
 
             #if swift(>=5.8)
             await self.fulfillment(of: [exp])

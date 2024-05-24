@@ -12,7 +12,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let parent = parent else { return }
-        parent.eventSubscriptions.recieve(.discoveredServices(parent.services ?? [], error))
+        parent.eventSubscriptions.receive(.discoveredServices(parent.services ?? [], error))
         parent.delegate?.peripheral(parent, didDiscoverServices: error)
     }
 
@@ -29,13 +29,13 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
             parent.knownCharacteristics[characteristic.uuid] = characteristic
         }
 
-        parent.eventSubscriptions.recieve(.discoveredCharacteristics(service, service.characteristics ?? [], error))
+        parent.eventSubscriptions.receive(.discoveredCharacteristics(service, service.characteristics ?? [], error))
         parent.delegate?.peripheral(parent, didDiscoverCharacteristicsFor: service, error: error)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
         guard let parent = parent else { return }
-        parent.eventSubscriptions.recieve(.discoveredDescriptors(characteristic, characteristic.descriptors ?? [], error))
+        parent.eventSubscriptions.receive(.discoveredDescriptors(characteristic, characteristic.descriptors ?? [], error))
         parent.delegate?.peripheral(parent, didDiscoverDescriptorsFor: characteristic, error: error)
     }
 
@@ -79,13 +79,13 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
         guard let parent = parent else { return }
-        parent.eventSubscriptions.recieve(.updateNotificationState(characteristic, error))
+        parent.eventSubscriptions.receive(.updateNotificationState(characteristic, error))
         parent.delegate?.peripheral(parent, didUpdateNotificationStateFor: characteristic, error: error)
     }
 
     func peripheral(_ peripheral: CBPeripheral, didReadRSSI RSSI: NSNumber, error: Error?) {
         guard let parent = parent else { return }
-        parent.eventSubscriptions.recieve(.readRSSI(RSSI, error))
+        parent.eventSubscriptions.receive(.readRSSI(RSSI, error))
         parent.delegate?.peripheral(parent, didReadRSSI: RSSI, error: error)
     }
 
