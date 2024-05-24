@@ -25,7 +25,7 @@ internal final class AsyncSubscriptionQueue<Value> {
         return item
     }
 
-    func recieve(_ value: Value) {
+    func receive(_ value: Value) {
         dispatchQueue.async {
             for item in self.items.reversed() {
                 item.block(value, item.cancel)
@@ -38,4 +38,19 @@ internal final class AsyncSubscriptionQueue<Value> {
             self.items.removeAll(where: { $0 == item })
         }
     }
+}
+
+// MARK: Deprecated
+
+extension AsyncSubscriptionQueue {
+
+    @available(*, deprecated, renamed: "receive")
+    func recieve(_ value: Value) {
+        dispatchQueue.async {
+            for item in self.items.reversed() {
+                item.block(value, item.cancel)
+            }
+        }
+    }
+
 }

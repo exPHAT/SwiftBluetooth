@@ -165,7 +165,7 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func testPeripheralSimultaniousDisconnectAndRead() async throws {
+    func testPeripheralSimultaneousDisconnectAndRead() async throws {
         try await withTimeout { [self] in
             try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
@@ -196,8 +196,9 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
                 XCTAssertEqual(0, ran)
                 ran += 1
             }
-            peripheral.responseMap.recieve(key: characteristic.uuid, withValue: .success(.init([0xFF])))
-            peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
+
+            peripheral.responseMap.receive(key: characteristic.uuid, withValue: .success(.init([0xFF])))
+            peripheral.eventSubscriptions.receive(.didDisconnect(nil))
 
             #if swift(>=5.8)
             await self.fulfillment(of: [exp])
