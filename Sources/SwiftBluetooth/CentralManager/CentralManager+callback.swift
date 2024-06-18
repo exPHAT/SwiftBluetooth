@@ -1,8 +1,14 @@
 import Foundation
 import CoreBluetooth
 
+public struct PeripheralScanResult {
+    public let peripheral: Peripheral
+    public let advertisementData: [String: Any]
+    public let rssi: NSNumber
+}
+
 public extension CentralManager {
-    func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) {
+    func waitUntilReady(timeout: TimeInterval = Double.infinity, completionHandler: @escaping (Result<Void, Error>) -> Void) {
         eventQueue.async { [self] in
             guard state != .poweredOn else {
                 completionHandler(.success(Void()))
@@ -18,8 +24,9 @@ public extension CentralManager {
                 completionHandler(.failure(CentralError.unavailable))
                 return
             }
-
-            eventSubscriptions.queue { event, done in
+            
+            var timer: Timer?
+            let task = eventSubscriptions.queue { event, done in
                 guard case .stateUpdated(let state) = event else { return }
 
                 switch state {
@@ -32,8 +39,18 @@ public extension CentralManager {
                 default:
                     return
                 }
-
+                
+                timer?.invalidate()
                 done()
+            }
+            
+            if timeout != .infinity {
+                let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
+                    task.cancel()
+                    completionHandler(.failure(CentralError.poweredOff))
+                }
+                timer = timeoutTimer
+                RunLoop.main.add(timeoutTimer, forMode: .default)
             }
         }
     }
@@ -78,13 +95,13 @@ public extension CentralManager {
         }
     }
 
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (PeripheralScanResult) -> Void) -> CancellableTask {
         eventQueue.sync {
             var timer: Timer?
             let subscription = eventSubscriptions.queue { event, done in
                 switch event {
-                case .discovered(let peripheral, _, _):
-                    onPeripheralFound(peripheral)
+                case .discovered(let peripheral, let advData, let rssi):
+                    onPeripheralFound(PeripheralScanResult(peripheral: peripheral, advertisementData: advData, rssi: rssi))
                 case .stopScan:
                     done()
                 default:

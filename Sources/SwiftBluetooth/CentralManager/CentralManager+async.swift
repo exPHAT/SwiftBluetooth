@@ -3,9 +3,9 @@ import CoreBluetooth
 
 public extension CentralManager {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func waitUntilReady() async throws {
+    func waitUntilReady(timeout: TimeInterval = Double.infinity) async throws {
         try await withCheckedThrowingContinuation { cont in
-            self.waitUntilReady { result in
+            self.waitUntilReady(timeout: timeout) { result in
                 cont.resume(with: result)
             }
         }
@@ -44,13 +44,13 @@ public extension CentralManager {
 
     // This method doesn't need to be marked async, but it prevents a signature collision
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil) async -> AsyncStream<Peripheral> {
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil) async -> AsyncStream<PeripheralScanResult> {
         .init { cont in
             var timer: Timer?
             let subscription = eventSubscriptions.queue { event, done in
                 switch event {
-                case .discovered(let peripheral, _, _):
-                    cont.yield(peripheral)
+                case .discovered(let peripheral, let advData, let rssi):
+                    cont.yield(PeripheralScanResult(peripheral: peripheral, advertisementData: advData, rssi: rssi))
                 case .stopScan:
                     done()
                     cont.finish()
