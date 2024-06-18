@@ -47,7 +47,7 @@ public extension CentralManager {
             if timeout != .infinity {
                 let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
                     task.cancel()
-                    completionHandler(.failure(CBError(.connectionTimeout)))
+                    completionHandler(.failure(CentralError.poweredOff))
                 }
                 timer = timeoutTimer
                 RunLoop.main.add(timeoutTimer, forMode: .default)
