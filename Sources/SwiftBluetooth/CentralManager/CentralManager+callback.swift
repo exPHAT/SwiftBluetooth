@@ -8,7 +8,7 @@ public struct PeripheralScanResult {
 }
 
 public extension CentralManager {
-    func waitUntilReady(timeout: TimeInterval, completionHandler: @escaping (Result<Void, Error>) -> Void) {
+    func waitUntilReady(timeout: TimeInterval = Double.infinity, completionHandler: @escaping (Result<Void, Error>) -> Void) {
         eventQueue.async { [self] in
             guard state != .poweredOn else {
                 completionHandler(.success(Void()))
