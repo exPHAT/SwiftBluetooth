@@ -3,9 +3,9 @@ import CoreBluetooth
 
 public extension CentralManager {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func waitUntilReady() async throws {
+    func waitUntilReady(timeout: TimeInterval) async throws {
         try await withCheckedThrowingContinuation { cont in
-            self.waitUntilReady { result in
+            self.waitUntilReady(timeout: timeout) { result in
                 cont.resume(with: result)
             }
         }
