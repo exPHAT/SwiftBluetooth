@@ -46,6 +46,10 @@ public class Peripheral: NSObject {
 
         cbPeripheral.delegate = wrappedDelegate
     }
+
+    internal func updateCBPeripheral(_ cbPeripheral: CBPeripheral) {
+        self.cbPeripheral = cbPeripheral
+    }
 }
 
 // MARK: - CBPeripheral methods

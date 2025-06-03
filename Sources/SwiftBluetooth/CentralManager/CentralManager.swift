@@ -37,6 +37,13 @@ public class CentralManager: NSObject {
     // MARK: - Internal
     internal func peripheral(_ cbPeripheral: CBPeripheral) -> Peripheral {
         if let found = peripheralMap[cbPeripheral.identifier] {
+
+            // Sometimes state restoration will create a new instance of the same peripheral with the same identifier.
+            // If any events come up with a mismatched instance, we should update them.
+            if found.cbPeripheral !== cbPeripheral {
+                found.updateCBPeripheral(cbPeripheral)
+            }
+
             return found
         }
 

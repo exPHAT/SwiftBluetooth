@@ -76,6 +76,12 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
         guard let parent = parent else { return }
 
+        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
+            for peripheral in peripherals {
+                let _ = parent.peripheral(peripheral) // Update underlying peripheral reference with newly restored references
+            }
+        }
+
         parent.delegate?.centralManager(parent, willRestoreState: dict)
 
         parent.eventQueue.async {
