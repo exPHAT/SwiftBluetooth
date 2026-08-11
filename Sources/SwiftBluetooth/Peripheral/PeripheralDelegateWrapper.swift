@@ -25,9 +25,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
         guard let parent = parent else { return }
 
         // Save known characteristics for later usage by UUID
-        for characteristic in service.characteristics ?? [] {
-            parent.knownCharacteristics[characteristic.uuid] = characteristic
-        }
+        parent.registerCharacteristics(service.characteristics ?? [])
 
         parent.eventSubscriptions.recieve(.discoveredCharacteristics(service, service.characteristics ?? [], error))
         parent.delegate?.peripheral(parent, didDiscoverCharacteristicsFor: service, error: error)
@@ -44,8 +42,10 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
         if let error {
             parent.responseMap.recieve(key: characteristic.uuid, withValue: .failure(error))
-        } else if let value = characteristic.value {
-            parent.responseMap.recieve(key: characteristic.uuid, withValue: .success(value))
+        } else {
+            // A read that succeeds without a value still has to be reported, or whoever
+            // asked for it waits forever
+            parent.responseMap.recieve(key: characteristic.uuid, withValue: .success(characteristic.value ?? Data()))
         }
 
         parent.delegate?.peripheral(parent, didUpdateValueFor: characteristic, error: error)
@@ -101,6 +101,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didOpen channel: CBL2CAPChannel?, error: Error?) {
         guard let parent = parent else { return }
+        parent.eventSubscriptions.recieve(.didOpenL2CAPChannel(channel, error))
         parent.delegate?.peripheral(parent, didOpen: channel, error: error)
     }
 }

@@ -118,6 +118,20 @@ class CentralPeripheralTestCase: XCTestCase {
         central = CentralManager()
     }
 
+    /// Runs out anything still in flight across the queues callbacks travel through.
+    ///
+    /// Draining a queue can put more work back onto it: a delegate callback lands on the
+    /// manager's queue, which hands the event to its subscribers on the event queue, which
+    /// can then deliver to the peripheral's. Each pass moves the work along one step, so
+    /// they have to be drained together and more than once.
+    private func settleQueues(rounds: Int = 3) {
+        for _ in 0..<rounds {
+            DispatchQueue.main.sync { }
+            central?.eventQueue.sync { }
+            peripheral?.eventQueue.sync { }
+        }
+    }
+
     override func tearDown() async throws {
         var hadPeripheral = false
 
@@ -125,8 +139,13 @@ class CentralPeripheralTestCase: XCTestCase {
             if mockPeripheral.isConnected {
                 try await central.cancelPeripheralConnection(peripheral)
             }
+
+            // Let any callback still in flight land before dropping the peripheral,
+            // since delivering one registers it with the central again
+            settleQueues()
+
             central.removePeripheral(peripheral.cbPeripheral)
-            DispatchQueue.main.sync { }
+            settleQueues()
 
             hadPeripheral = true
 
@@ -138,10 +157,10 @@ class CentralPeripheralTestCase: XCTestCase {
 
         XCTAssertTrue(central.eventSubscriptions.isEmpty)
 
-        weak var weakCentral = central
+        weak let weakCentral = central
 
         if hadPeripheral {
-            weak var weakPeripheral = peripheral
+            weak let weakPeripheral = peripheral
 
             peripheral = nil
 

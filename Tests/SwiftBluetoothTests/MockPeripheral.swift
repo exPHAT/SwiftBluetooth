@@ -52,7 +52,7 @@ let mockServices: [CBMServiceMock] = [
           characteristics: mockCharacteristics[0], mockCharacteristics[1]),
     .init(type: CBMUUID(string: "00000000-0000-0000-0002-000000000000"),
           primary: true,
-          characteristics: mockCharacteristics[2], mockCharacteristics[2])
+          characteristics: mockCharacteristics[2], mockCharacteristics[3])
 ]
 
 let mockPeripheral = CBMPeripheralSpec.simulatePeripheral(identifier: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,

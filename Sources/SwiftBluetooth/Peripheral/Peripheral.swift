@@ -1,19 +1,33 @@
 import Foundation
 import CoreBluetooth
 
+@dynamicMemberLookup
 public class Peripheral: NSObject {
-    private(set) var cbPeripheral: CBPeripheral
+    // Guards every mutable property below it. Never held while calling out to
+    // CoreBluetooth, the delegate, or subscriber code.
+    private let stateLock = NSLock()
+    private var _cbPeripheral: CBPeripheral
+    private var _knownCharacteristics: [CBUUID: CBCharacteristic] = [:]
+    private var _discovery: DiscoveryInfo?
+
+    // Only ever touched from `init`, which runs on a single thread, so the
+    // non-atomic `lazy` initialization can't be raced.
     private lazy var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
 
-    internal let eventQueue = DispatchQueue(label: "peripheral-event-queue")
-    internal lazy var responseMap = AsyncSubscriptionQueueMap<CBUUID, Result<Data, Error>>(eventQueue)
-    internal lazy var writeMap = AsyncSubscriptionQueueMap<CBUUID, Error?>(eventQueue)
-    internal lazy var descriptorMap = AsyncSubscriptionQueueMap<CBUUID, Result<Any?, Error>>(eventQueue)
-    internal lazy var eventSubscriptions = AsyncSubscriptionQueue<PeripheralEvent>(eventQueue)
+    internal let eventQueue: DispatchQueue
+    internal let responseMap: AsyncSubscriptionQueueMap<CBUUID, Result<Data, Error>>
+    internal let writeMap: AsyncSubscriptionQueueMap<CBUUID, Error?>
+    internal let descriptorMap: AsyncSubscriptionQueueMap<CBUUID, Result<Any?, Error>>
+    internal let eventSubscriptions: AsyncSubscriptionQueue<PeripheralEvent>
 
-    internal var knownCharacteristics: [CBUUID: CBCharacteristic] = [:]
+    internal var cbPeripheral: CBPeripheral {
+        stateLock.lock()
+        defer { stateLock.unlock() }
 
-    internal var notifyingState = NotifyingTracker<CBUUID>()
+        return _cbPeripheral
+    }
+
+    internal let notifyingState = NotifyingTracker<CBUUID>()
 
     // MARK: - CBPeripheral properties
     public var name: String? { cbPeripheral.name }
@@ -23,32 +37,114 @@ public class Peripheral: NSObject {
     public var canSendWriteWithoutResponse: Bool { cbPeripheral.canSendWriteWithoutResponse }
 
     #if os(iOS)
-    public var acnsAuthorized: Bool { cbPeripheral.ancsAuthorized }
+    public var ancsAuthorized: Bool { cbPeripheral.ancsAuthorized }
+
+    @available(*, deprecated, renamed: "ancsAuthorized")
+    public var acnsAuthorized: Bool { ancsAuthorized }
     #endif
 
-    public weak var delegate: PeripheralDelegate?
+    private weak var _delegate: PeripheralDelegate?
 
-    public internal(set) var discovery: DiscoveryInfo!
+    /// Receives the same callbacks as `CBPeripheralDelegate`, on the queue the central manager was created with.
+    public var delegate: PeripheralDelegate? {
+        get {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+
+            return _delegate
+        }
+        set {
+            stateLock.lock()
+            defer { stateLock.unlock() }
+
+            _delegate = newValue
+        }
+    }
+
+    /// Information from the most recent advertisement this peripheral was discovered with.
+    ///
+    /// This is `nil` until the peripheral has been discovered by a scan. Peripherals obtained
+    /// from `retrievePeripherals(withIdentifiers:)`, `retrieveConnectedPeripherals(withServices:)`
+    /// or state restoration have never been advertised to us, so they have no discovery info.
+    public var discoveryInfo: DiscoveryInfo? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        return _discovery
+    }
+
+    @available(*, deprecated, renamed: "discoveryInfo", message: "Accessing this on a peripheral that was never discovered by a scan traps. Use `discoveryInfo` instead.")
+    public var discovery: DiscoveryInfo! { discoveryInfo }
 
     public subscript(dynamicMember member: KeyPath<Characteristic.Type, Characteristic>) -> CBCharacteristic? {
-        let char = Characteristic.self[keyPath: member]
-        return knownCharacteristics[char.uuid]
+        characteristic(for: Characteristic.self[keyPath: member])
     }
 
     public func characteristic(for char: Characteristic) -> CBCharacteristic? {
-        knownCharacteristics[char.uuid]
+        knownCharacteristic(for: char.uuid)
     }
 
-    // MARK: - CBPeripheral initializers
+    // MARK: - Initializers
     public init(_ cbPeripheral: CBPeripheral) {
-        self.cbPeripheral = cbPeripheral
+        let queue = DispatchQueue(label: "peripheral-event-queue")
+
+        self.eventQueue = queue
+        self.responseMap = .init(queue)
+        self.writeMap = .init(queue)
+        self.descriptorMap = .init(queue)
+        self.eventSubscriptions = .init(queue)
+        self._cbPeripheral = cbPeripheral
         super.init()
 
         cbPeripheral.delegate = wrappedDelegate
     }
 
+    // MARK: - Internal
+    internal func updateDiscovery(_ discovery: DiscoveryInfo) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        _discovery = discovery
+    }
+
+    internal func knownCharacteristic(for uuid: CBUUID) -> CBCharacteristic? {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        return _knownCharacteristics[uuid]
+    }
+
+    internal func registerCharacteristics(_ characteristics: [CBCharacteristic]) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+
+        for characteristic in characteristics {
+            _knownCharacteristics[characteristic.uuid] = characteristic
+        }
+    }
+
+    /// Points this wrapper at a new underlying `CBPeripheral`, which state restoration
+    /// can hand back in place of the instance we were originally created with.
     internal func updateCBPeripheral(_ cbPeripheral: CBPeripheral) {
-        self.cbPeripheral = cbPeripheral
+        stateLock.lock()
+        let previous = _cbPeripheral
+        _cbPeripheral = cbPeripheral
+
+        // Characteristics belong to the peripheral that discovered them, so passing the old
+        // instance's objects to the new one is API misuse. Reuse whatever the new instance
+        // has already discovered and drop the rest.
+        _knownCharacteristics = [:]
+        for service in cbPeripheral.services ?? [] {
+            for characteristic in service.characteristics ?? [] {
+                _knownCharacteristics[characteristic.uuid] = characteristic
+            }
+        }
+        stateLock.unlock()
+
+        guard previous !== cbPeripheral else { return }
+
+        previous.delegate = nil
+        cbPeripheral.delegate = wrappedDelegate
     }
 }
 
@@ -108,3 +204,9 @@ public extension Peripheral {
     }
     #endif
 }
+
+// All of this type's mutable state is guarded by its own lock, and the underlying
+// `CBPeripheral` is safe to use from any thread, so instances can cross isolation
+// boundaries. Unchecked because the compiler can't verify hand-rolled locking.
+@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
+extension Peripheral: @unchecked Sendable { }

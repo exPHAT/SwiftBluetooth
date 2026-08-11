@@ -2,13 +2,17 @@ import Foundation
 
 internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
     private var items: [Key: AsyncSubscriptionQueue<Value>] = [:]
+    private let lock = NSLock()
+
+    private let dispatchQueue: DispatchQueue
 
     internal var isEmpty: Bool {
-        items.values.allSatisfy { $0.isEmpty }
-    }
+        lock.lock()
+        let queues = Array(items.values)
+        lock.unlock()
 
-    // TODO: Convert these to just use a lock
-    private let dispatchQueue: DispatchQueue
+        return queues.allSatisfy { $0.isEmpty }
+    }
 
     init(_ dispatchQueue: DispatchQueue = .init(label: "async-subscription-queue-map")) {
         self.dispatchQueue = dispatchQueue
@@ -16,28 +20,24 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
 
     @discardableResult
     func queue(key: Key, block: @escaping (Value, () -> Void) -> Void, completion: (() -> Void)? = nil) -> AsyncSubscription<Value> {
-        var item: AsyncSubscriptionQueue<Value>?
-
-        dispatchQueue.safeSync {
-            item = items[key]
+        lock.lock()
+        let queue: AsyncSubscriptionQueue<Value>
+        if let existing = items[key] {
+            queue = existing
+        } else {
+            queue = .init(dispatchQueue)
+            items[key] = queue
         }
+        lock.unlock()
 
-        guard let item = item else {
-            dispatchQueue.safeSync {
-                items[key] = .init(self.dispatchQueue)
-            }
-
-            return queue(key: key, block: block, completion: completion)
-        }
-
-        return item.queue(block: block, completion: completion)
+        return queue.queue(block: block, completion: completion)
     }
 
     func recieve(key: Key, withValue value: Value) {
-        dispatchQueue.async {
-            guard let queue = self.items[key] else { return }
+        lock.lock()
+        let queue = items[key]
+        lock.unlock()
 
-            queue.recieve(value)
-        }
+        queue?.recieve(value)
     }
 }

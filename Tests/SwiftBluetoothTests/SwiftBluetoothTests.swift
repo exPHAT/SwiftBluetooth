@@ -1,5 +1,5 @@
 import XCTest
-@testable import CoreBluetoothMock
+@testable @preconcurrency import CoreBluetoothMock
 @testable import SwiftBluetoothMock
 
 extension Characteristic {
@@ -290,12 +290,14 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
                 exp.fulfill()
             }
 
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [self] in
+            let subscribedPeripheral = peripheral!
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
                 mockPeripheral.simulateValueUpdate(.init([0x10]), for: mutableMockCharacteristic)
                 mockPeripheral.simulateValueUpdate(.init([0x11]), for: mutableMockCharacteristic)
                 mockPeripheral.simulateValueUpdate(.init([0x12]), for: mutableMockCharacteristic)
 
-                peripheral.setNotifyValue(false, for: characteristic)
+                subscribedPeripheral.setNotifyValue(false, for: characteristic)
             }
 
             #if swift(>=5.8)
@@ -345,16 +347,18 @@ final class SwiftBluetoothTests: CentralPeripheralTestCase {
             try await central.waitUntilReady()
             peripheral = await central.scanForPeripherals().first!
 
-            XCTAssertEqual(peripheral.discovery.rssi, mockPeripheral.proximity.RSSI, accuracy: 15) // 15 is what CBM uses for random deviation
+            let discovery = try XCTUnwrap(peripheral.discoveryInfo)
 
-            XCTAssertEqual(peripheral.discovery.advertisementData.isConnectable, true)
-            XCTAssertEqual(peripheral.discovery.advertisementData.localName, mockPeripheral.name)
-            XCTAssertEqual(peripheral.discovery.advertisementData.serviceUUIDs, mockServices.map(\.uuid))
+            XCTAssertEqual(discovery.rssi, mockPeripheral.proximity.RSSI, accuracy: 15) // 15 is what CBM uses for random deviation
+
+            XCTAssertEqual(discovery.advertisementData.isConnectable, true)
+            XCTAssertEqual(discovery.advertisementData.localName, mockPeripheral.name)
+            XCTAssertEqual(discovery.advertisementData.serviceUUIDs, mockServices.map(\.uuid))
 
             // Double check that key indexing still works
-            XCTAssertNotNil(peripheral.discovery.advertisementData[CBAdvertisementDataIsConnectable])
-            XCTAssertNotNil(peripheral.discovery.advertisementData[CBAdvertisementDataLocalNameKey])
-            XCTAssertNotNil(peripheral.discovery.advertisementData[CBAdvertisementDataServiceUUIDsKey])
+            XCTAssertNotNil(discovery.advertisementData[CBAdvertisementDataIsConnectable])
+            XCTAssertNotNil(discovery.advertisementData[CBAdvertisementDataLocalNameKey])
+            XCTAssertNotNil(discovery.advertisementData[CBAdvertisementDataServiceUUIDsKey])
         }
     }
 

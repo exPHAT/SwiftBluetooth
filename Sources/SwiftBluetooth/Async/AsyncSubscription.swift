@@ -7,7 +7,10 @@ internal struct AsyncSubscription<Value>: Identifiable, Equatable, CancellableTa
     let completion: (() -> Void)?
 
     public func cancel() {
-        parent?.remove(self)
+        // Only the call that actually removes the subscription runs the completion,
+        // so cancelling more than once has no additional effect
+        guard parent?.remove(self) == true else { return }
+
         completion?()
     }
 

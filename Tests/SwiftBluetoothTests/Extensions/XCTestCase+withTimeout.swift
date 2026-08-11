@@ -14,8 +14,12 @@ extension XCTestCase {
         line: UInt = #line
     ) async throws -> T {
         try await withCheckedThrowingContinuation { cont in
+            let lock = NSLock()
             var done = false
             let notYetCompleted = {
+                lock.lock()
+                defer { lock.unlock() }
+
                 let current = done
                 done = true
                 return !current
@@ -38,9 +42,7 @@ extension XCTestCase {
                 guard notYetCompleted() else { return }
 
                 let error = TimedOutError(file: file, line: line)
-//                let issue = XCTIssue(type: .assertionFailure, compactDescription: "Test timed out", associatedError: error)
-//                XCTAssert(false)
-                XCTFail("Test Timed Out")
+                XCTFail("Test Timed Out", file: file, line: line)
                 cont.resume(throwing: error)
             }
         }

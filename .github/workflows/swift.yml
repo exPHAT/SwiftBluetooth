@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [master, 'v*']
   pull_request:
-    branches: [master]
+    branches: [master, 'v*']
 
 jobs:
 
@@ -13,19 +13,32 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
       - name: Build
         run: swift build -v
 
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # Compiles the iOS-only code that a macOS build never reaches
+      - name: Build for iOS
+        run: xcodebuild build -scheme SwiftBluetooth -destination 'generic/platform=iOS Simulator' -quiet
+
   test:
     runs-on: macos-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -35,9 +48,8 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
       - name: SwiftLint
         uses: norio-nomura/action-swiftlint@3.2.1
         env:
           WORKING_DIRECTORY: Sources/SwiftBluetooth
-

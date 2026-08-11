@@ -4,26 +4,22 @@ import CoreBluetooth
 public extension Peripheral {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValue(for characteristic: CBCharacteristic) async throws -> Data {
-        try await withCheckedThrowingContinuation { cont in
-            self.readValue(for: characteristic) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.readValue(for: characteristic, completionHandler: completion)
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValue(for characteristic: Characteristic) async throws -> Data {
-        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await readValue(for: mappedCharacteristic)
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValue(for descriptor: CBDescriptor) async throws -> Any? {
-        try await withCheckedThrowingContinuation { cont in
-            self.readValue(for: descriptor) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.readValue(for: descriptor, completionHandler: completion)
         }
     }
 
@@ -86,85 +82,68 @@ public extension Peripheral {
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValues(for characteristic: Characteristic) -> AsyncStream<Data> {
-        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+        // This signature can't report the error, so an undiscovered characteristic stays fatal here
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { fatalError("Characteristic \(characteristic.uuid) not found.") }
 
         return readValues(for: mappedCharacteristic)
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) async throws {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+        try await withCancellableContinuation { (completion: @escaping (Result<Void, Error>) -> Void) in
             self.writeValue(data, for: characteristic, type: type) { error in
-                if let error {
-                    cont.resume(throwing: error)
-                    return
-                }
-
-                cont.resume()
+                completion(error.map { .failure($0) } ?? .success(()))
             }
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func writeValue(_ data: Data, for descriptor: CBDescriptor) async throws {
-        try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+        try await withCancellableContinuation { (completion: @escaping (Result<Void, Error>) -> Void) in
             self.writeValue(data, for: descriptor) { error in
-                if let error {
-                    cont.resume(throwing: error)
-                    return
-                }
-
-                cont.resume()
+                completion(error.map { .failure($0) } ?? .success(()))
             }
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) async throws {
-        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await writeValue(data, for: mappedCharacteristic, type: type)
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil) async throws -> [CBService] {
-        try await withCheckedThrowingContinuation { cont in
-            self.discoverServices(serviceUUIDs) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.discoverServices(serviceUUIDs, completionHandler: completion)
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async throws -> [CBCharacteristic] {
-        try await withCheckedThrowingContinuation { cont in
-            self.discoverCharacteristics(characteristicUUIDs, for: service) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.discoverCharacteristics(characteristicUUIDs, for: service, completionHandler: completion)
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService) async throws -> [CBCharacteristic] {
-        try await withCheckedThrowingContinuation { cont in
-            self.discoverCharacteristics(characteristics, for: service) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.discoverCharacteristics(characteristics, for: service, completionHandler: completion)
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverDescriptors(for characteristic: CBCharacteristic) async throws -> [CBDescriptor] {
-        try await withCheckedThrowingContinuation { cont in
-            self.discoverDescriptors(for: characteristic) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.discoverDescriptors(for: characteristic, completionHandler: completion)
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverDescriptors(for characteristic: Characteristic) async throws -> [CBDescriptor] {
-        guard let mappedCharacteristic = knownCharacteristics[characteristic.uuid] else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await discoverDescriptors(for: mappedCharacteristic)
     }
@@ -172,44 +151,31 @@ public extension Peripheral {
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     @discardableResult
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) async throws -> Bool {
-        try await withCheckedThrowingContinuation { cont in
-            self.setNotifyValue(value, for: characteristic) { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.setNotifyValue(value, for: characteristic, completionHandler: completion)
         }
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     @discardableResult
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) async throws -> Bool {
-        try await withCheckedThrowingContinuation { cont in
-            self.setNotifyValue(value, for: characteristic) { result in
-                cont.resume(with: result)
-            }
-        }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
+
+        return try await setNotifyValue(value, for: mappedCharacteristic)
     }
 
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readRSSI() async throws -> NSNumber {
-        try await withCheckedThrowingContinuation { cont in
-            self.readRSSI { result in
-                cont.resume(with: result)
-            }
+        try await withCancellableContinuation { completion in
+            self.readRSSI(completionHandler: completion)
         }
     }
 
     #if !os(macOS)
     @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM) async throws -> CBL2CAPChannel {
-        try await withCheckedThrowingContinuation { cont in
-            self.openL2CAPChannel(PSM) { result in
-                switch result {
-                case .success(let channel):
-                    cont.resume(returning: channel)
-                case .failure(let error):
-                    cont.resume(throwing: error)
-                }
-            }
+        try await withCancellableContinuation { completion in
+            self.openL2CAPChannel(PSM, completionHandler: completion)
         }
     }
     #endif

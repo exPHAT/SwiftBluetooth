@@ -2,8 +2,13 @@ import Foundation
 import CoreBluetooth
 
 public extension CentralManager {
-    func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) {
+    @discardableResult
+    func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+        let handle = DeferredCancellableTask()
+
         eventQueue.async { [self] in
+            guard !handle.isCancelled else { return }
+
             guard state != .poweredOn else {
                 completionHandler(.success(Void()))
                 return
@@ -19,7 +24,7 @@ public extension CentralManager {
                 return
             }
 
-            eventSubscriptions.queue { event, done in
+            handle.add(eventSubscriptions.queue { event, done in
                 guard case .stateUpdated(let state) = event else { return }
 
                 switch state {
@@ -34,53 +39,77 @@ public extension CentralManager {
                 }
 
                 done()
-            }
+            })
         }
+
+        return handle
     }
 
-    func connect(_ peripheral: Peripheral, timeout: TimeInterval, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) {
+    @discardableResult
+    func connect(_ peripheral: Peripheral, timeout timeoutInterval: TimeInterval = .infinity, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) -> CancellableTask {
+        let handle = DeferredCancellableTask()
+
         eventQueue.async { [self] in
+            guard !handle.isCancelled else { return }
+
             guard peripheral.state != .connected else {
                 completionHandler(.success(peripheral))
                 return
             }
 
-            var timer: Timer?
+            var timeout: DispatchTimeout?
             let task = eventSubscriptions.queue { event, done in
+                let result: Result<Peripheral, Error>
+
                 switch event {
                 case .connected(let connected):
                     guard connected == peripheral else { return }
-                    completionHandler(.success(peripheral))
+                    result = .success(peripheral)
                 case .disconnected(let disconnected, let error):
                     guard disconnected == peripheral else { return }
-                    completionHandler(.failure(error ?? CentralError.unknown))
+                    result = .failure(error ?? CentralError.unknown)
                 case .failToConnect(let failed, let error):
                     guard failed == peripheral else { return }
-                    completionHandler(.failure(error ?? CentralError.unknown))
+                    result = .failure(error ?? CentralError.unknown)
                 default:
                     return
                 }
 
-                timer?.invalidate()
+                timeout?.cancel()
+                completionHandler(result)
                 done()
             }
 
-            if timeout != .infinity {
-                let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
+            if timeoutInterval != .infinity {
+                // Fires on `eventQueue`, so it can't interleave with the event handler above
+                timeout = DispatchTimeout(after: timeoutInterval, on: eventQueue) { [weak self] in
                     task.cancel()
+
+                    // CoreBluetooth keeps trying to connect indefinitely otherwise
+                    self?.cancelPeripheralConnection(peripheral)
                     completionHandler(.failure(CBError(.connectionTimeout)))
                 }
-                timer = timeoutTimer
-                RunLoop.main.add(timeoutTimer, forMode: .default)
+            }
+
+            handle.add(task)
+            if let timeout = timeout {
+                handle.add(CancelTimeout(timeout))
             }
 
             connect(peripheral, options: options)
         }
+
+        return handle
     }
 
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
-        eventQueue.sync {
-            var timer: Timer?
+    /// Scans for peripherals, calling `onPeripheralFound` for each advertisement received.
+    ///
+    /// Only one scan can be in progress at a time. Starting another scan, or calling
+    /// ``stopScan()``, ends every scan currently running.
+    @discardableResult
+    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout timeoutInterval: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
+        eventQueue.safeSync {
+            var timeout: DispatchTimeout?
             let subscription = eventSubscriptions.queue { event, done in
                 switch event {
                 case .discovered(let peripheral, _, _):
@@ -90,19 +119,15 @@ public extension CentralManager {
                 default:
                     break
                 }
-            } completion: { [weak self, timer] in
+            } completion: { [weak self] in
                 guard let self = self else { return }
-                timer?.invalidate()
+                timeout?.cancel()
                 self.centralManager.stopScan()
             }
 
-            if timeout != .infinity {
-                if let timeout = timeout {
-                    let timeoutTimer = Timer(fire: Date() + timeout, interval: 0, repeats: false) { _ in
-                        subscription.cancel()
-                    }
-                    timer = timeoutTimer
-                    RunLoop.main.add(timeoutTimer, forMode: .default)
+            if let timeoutInterval = timeoutInterval, timeoutInterval != .infinity {
+                timeout = DispatchTimeout(after: timeoutInterval, on: eventQueue) {
+                    subscription.cancel()
                 }
             }
 
@@ -112,14 +137,19 @@ public extension CentralManager {
         }
     }
 
-    func cancelPeripheralConnection(_ peripheral: Peripheral, completionHandler: @escaping (Result<Void, Error>) -> Void) {
+    @discardableResult
+    func cancelPeripheralConnection(_ peripheral: Peripheral, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+        let handle = DeferredCancellableTask()
+
         eventQueue.async { [self] in
-            guard connectedPeripherals.contains(peripheral) else {
+            guard !handle.isCancelled else { return }
+
+            guard isConnected(peripheral) else {
                 completionHandler(.success(Void()))
                 return
             }
 
-            eventSubscriptions.queue { event, done in
+            handle.add(eventSubscriptions.queue { event, done in
                 guard case .disconnected(let disconnected, let error) = event,
                       disconnected == peripheral else { return }
 
@@ -130,9 +160,24 @@ public extension CentralManager {
                 }
 
                 done()
-            }
+            })
 
             cancelPeripheralConnection(peripheral)
         }
+
+        return handle
+    }
+}
+
+/// Lets a ``DispatchTimeout`` be cancelled alongside the subscriptions of the operation it belongs to.
+private struct CancelTimeout: CancellableTask {
+    let timeout: DispatchTimeout
+
+    init(_ timeout: DispatchTimeout) {
+        self.timeout = timeout
+    }
+
+    func cancel() {
+        timeout.cancel()
     }
 }

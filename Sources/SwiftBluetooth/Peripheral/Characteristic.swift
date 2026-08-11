@@ -4,11 +4,11 @@ import CoreBluetooth
 public struct Characteristic: Hashable, Equatable, ExpressibleByStringLiteral, Sendable {
     public var uuid: CBUUID
 
-    init(_ uuidString: String) {
+    public init(_ uuidString: String) {
         self.uuid = .init(string: uuidString)
     }
 
-    init(cbUuid: CBUUID) {
+    public init(cbUuid: CBUUID) {
         self.uuid = cbUuid
     }
 

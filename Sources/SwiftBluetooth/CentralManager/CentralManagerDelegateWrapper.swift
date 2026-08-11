@@ -14,8 +14,21 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
 
         parent.delegate?.centralManagerDidUpdateState(parent)
 
+        // Read from the manager we were handed rather than the parent's reference to it,
+        // which is still being published when the first state callback arrives
+        let state = central.state
+
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.stateUpdated(parent.state))
+            parent.eventSubscriptions.recieve(.stateUpdated(state))
+
+            // Losing the radio invalidates every peripheral without CoreBluetooth
+            // reporting a disconnection for any of them
+            switch state {
+            case .poweredOff, .resetting, .unauthorized, .unsupported:
+                parent.invalidatePeripherals(with: CBError(.peripheralDisconnected))
+            default:
+                break
+            }
         }
     }
 
@@ -23,7 +36,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 
-        parent.connectedPeripherals.insert(peripheral)
+        parent.markConnected(peripheral)
         parent.delegate?.centralManager(parent, didConnect: peripheral)
 
         parent.eventQueue.async {
@@ -32,17 +45,17 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didDisconnectPeripheral peripheral: CBPeripheral, error: Error?) {
-        guard let parent = parent else { return }
-        let peripheral = parent.peripheral(peripheral)
+        guard let parent = parent,
+              // Nothing to report for a peripheral we aren't tracking, and picking one up
+              // here would only build a wrapper for something that has already gone away
+              let peripheral = parent.existingPeripheral(peripheral) else { return }
 
-        parent.connectedPeripherals.remove(peripheral)
+        parent.markDisconnected(peripheral)
         parent.delegate?.centralManager(parent, didDisconnectPeripheral: peripheral, error: error)
 
-        // Not deleting peripheral instance for now. Might cause some issues for
-        // people retaining a reference to a disconnected peripheral that later reconnects.
-        // Maybe change this?
-        //
-        // parent.removePeripheral(peripheral.cbPeripheral)
+        // The peripheral instance is deliberately kept so a device that reconnects is
+        // represented by the same object. Callers who no longer need it can drop it
+        // with `CentralManager.forgetPeripheral(_:)`.
 
         parent.eventQueue.async {
             parent.eventSubscriptions.recieve(.disconnected(peripheral, error))
@@ -51,8 +64,8 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     }
 
     func centralManager(_ central: CBCentralManager, didFailToConnect peripheral: CBPeripheral, error: Error?) {
-        guard let parent = parent else { return }
-        let peripheral = parent.peripheral(peripheral)
+        guard let parent = parent,
+              let peripheral = parent.existingPeripheral(peripheral) else { return }
 
         parent.delegate?.centralManager(parent, didFailToConnect: peripheral, error: error)
 
@@ -64,7 +77,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
-        peripheral.discovery = .init(rssi: RSSI, advertisementData: advertisementData)
+        peripheral.updateDiscovery(.init(rssi: RSSI, advertisementData: advertisementData))
 
         parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
 

@@ -14,7 +14,7 @@ extension Peripheral {
         public struct AdvertisementData {
             private(set) var data: [String : Any]
 
-            subscript(key: String) -> Any? {
+            public subscript(key: String) -> Any? {
                 data[key]
             }
 

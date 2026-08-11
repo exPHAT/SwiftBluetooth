@@ -34,7 +34,7 @@ try await central.waitUntilReady()
 
 // Find and connect to the first available peripheral
 let peripheral = await central.scanForPeripherals(withServices: [myService]).first!
-try await central.connect(peripheral, timeout: connectionTimeout)
+try await central.connect(peripheral, timeout: 5)
 
 // Discover services and characteristics
 let service = try await peripheral.discoverServices([myService]).first!
@@ -43,7 +43,7 @@ let _ = try await peripheral.discoverCharacteristics([.someCharacteristic], for:
 // Read data directly from your characteristic
 let value = try await peripheral.readValue(for: .someCharacteristic)
 
-central.cancelPeripheralConnection(peripheral)
+try await central.cancelPeripheralConnection(peripheral)
 ```
 
 #### Callbacks
@@ -52,12 +52,14 @@ Stock CoreBluetooth methods now also have an additional overload that takes a co
 
 ```swift
 central.connect(peripheral) { result in
-  if result == .failure(let error) {
+  switch result {
+  case .failure(let error):
     // Issue connecting
-    return
+    print("Could not connect:", error)
+  case .success(let peripheral):
+    // Connected!
+    print("Connected to:", peripheral.name ?? "Unknown")
   }
-
-  // Connected!
 }
 ```
 > Methods often now have 3 overloads. One marked `async`, one with a `completionHandler`, and the original CoreBluetooth verision. Meaning you can choose whichever is most convienient at the time.
@@ -84,6 +86,8 @@ extension Characteristic {
 // Use those characteristics later on your peripheral
 try await myPeripheral.readValue(for: .someCharacteristic)
 ```
+> **Note**
+Characteristics have to be discovered before they can be used. Using one that hasn't been throws `PeripheralError.characteristicNotFound`.
 
 
 #### Watching with callbacks
@@ -99,7 +103,7 @@ let task = central.scanForPeripherals { peripheral in
 task.cancel()
 ```
 > **Note**
-Calling `central.stopScan()` will also cancel any peripheral scanning tasks
+Only one scan can run at a time. Calling `central.stopScan()`, or starting another scan, will cancel any peripheral scanning tasks and finish any scanning streams.
 
 #### Migrate existing projects
 
@@ -136,7 +140,7 @@ let package = Package(
   ...
   dependencies: [
     // Add the package to your dependencies
-    .package(url: "https://github.com/exPHAT/SwiftBluetooth.git", branch: "master"),
+    .package(url: "https://github.com/exPHAT/SwiftBluetooth.git", from: "1.1.0"),
   ],
   ...
   targets: [

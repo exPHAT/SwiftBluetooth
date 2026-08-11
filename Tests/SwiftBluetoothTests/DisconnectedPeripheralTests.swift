@@ -154,7 +154,7 @@ final class DisconnectedPeripheralTests: CentralPeripheralTestCase {
 
             // Request a new reference (should be the same as `peripheral`)
             let newPeripheralReference = try XCTUnwrap(central.retrievePeripherals(withIdentifiers: [peripheral.identifier]).first)
-            XCTAssertNotNil(newPeripheralReference.discovery)
+            XCTAssertNotNil(newPeripheralReference.discoveryInfo)
             XCTAssert(newPeripheralReference === peripheral) // Note: reference comparison
         }
     }
