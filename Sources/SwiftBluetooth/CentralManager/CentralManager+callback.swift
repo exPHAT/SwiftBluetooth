@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public extension CentralManager {
     /// Waits until the manager reaches a given state, calling `completionHandler` when it does.
@@ -81,6 +81,7 @@ public extension CentralManager {
     func connect(_ peripheral: Peripheral, timeout timeoutInterval: TimeInterval = .infinity, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
+        let options = UncheckedTransfer(options)
 
         // Reported whether cancellation lands before or after the work is registered
         handle.reportCancellation { completionHandler(.failure(CancellationError())) }
@@ -132,7 +133,7 @@ public extension CentralManager {
                 handle.add(CancelTimeout(timeout))
             }
 
-            connect(peripheral, options: options)
+            connect(peripheral, options: options.value)
         }
 
         return handle

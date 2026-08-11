@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public protocol PeripheralDelegate: AnyObject {
     func peripheral(_ peripheral: Peripheral, didDiscoverServices error: Error?)

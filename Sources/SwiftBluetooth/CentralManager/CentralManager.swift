@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public final class CentralManager: NSObject {
     internal let centralManager: CBCentralManager

@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public extension Peripheral {
     func readValue(for characteristic: CBCharacteristic) async throws -> Data {

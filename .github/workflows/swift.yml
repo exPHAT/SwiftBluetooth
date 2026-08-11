@@ -45,6 +45,27 @@ jobs:
       - name: Test
         run: swift test -v -c release
 
+      # Release strips asserts, and CoreBluetoothMock uses them to catch misuse
+      - name: Test (debug)
+        run: swift test -v
+
+  test-thread-sanitizer:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      # This library is a set of hand-rolled locks, so races are the failure mode
+      # that matters most and the one review is worst at catching. CoreBluetoothMock's
+      # own races are suppressed; anything reported here is ours.
+      - name: Test with ThreadSanitizer
+        run: swift test --sanitize=thread
+        env:
+          TSAN_OPTIONS: suppressions=${{ github.workspace }}/.tsan-suppressions.txt
+
   lint:
     runs-on: ubuntu-latest
     steps:

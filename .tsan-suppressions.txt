@@ -1,0 +1,11 @@
+# ThreadSanitizer suppressions for `swift test --sanitize=thread`.
+#
+# CoreBluetoothMock races with itself: its advertisement timer reads manager state on
+# the main thread while the simulation mutates it elsewhere. That's the test double,
+# not this library, and nothing here can fix it.
+#
+# Nothing from SwiftBluetooth is suppressed, so a race in this library still fails.
+race:CBMCentralManagerMock
+race:CBMPeripheralMock
+race:CBMCentralManager
+race:CBMPeripheralSpec

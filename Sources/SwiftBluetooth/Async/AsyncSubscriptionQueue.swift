@@ -30,6 +30,8 @@ internal final class AsyncSubscriptionQueue<Value>: @unchecked Sendable {
     }
 
     func receive(_ value: Value) {
+        let transfer = UncheckedTransfer(value)
+
         dispatchQueue.async { [weak self] in
             guard let self = self else { return }
 
@@ -42,7 +44,7 @@ internal final class AsyncSubscriptionQueue<Value>: @unchecked Sendable {
                 guard self.contains(item) else { continue }
 
                 // Never call out to subscriber code while holding the lock
-                item.block(value, item.cancel)
+                item.block(transfer.value, item.cancel)
             }
         }
     }

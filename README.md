@@ -14,13 +14,13 @@ Easily interface with Bluetooth peripherals in new or existing projects through 
 - [x] Subscribe to peripheral discoveries, value updates, and more through `AsyncStream`
 - [x] Easy await-ing of `CentralManager` state
 - [x] Staticly typed characteristics
-- [x] Thread safe
+- [x] Thread safe, and checked under the Swift 6 language mode
 - [x] Zero inherited dependencies
 - [x] Tested with included `SwiftBluetoothMock` library
 
 ## Examples
 
-[API Documentation.](https://swiftpackageindex.com/exPHAT/SwiftBluetooth/1.0.0/documentation/)
+[API Documentation.](https://swiftpackageindex.com/exPHAT/SwiftBluetooth/master/documentation/)
 
 #### Complete example
 
@@ -30,10 +30,10 @@ Async API's make the entire Bluetooth lifecycle much simpler, using method names
 import SwiftBluetooth
 
 let central = CentralManager()
-try await central.waitUntilReady()
+try await central.wait(for: .poweredOn)
 
 // Find and connect to the first available peripheral
-let peripheral = await central.scanForPeripherals(withServices: [myService]).first!
+let peripheral = try await central.scanForPeripherals(withServices: [myService]).first!
 try await central.connect(peripheral, timeout: 5)
 
 // Discover services and characteristics
@@ -69,10 +69,12 @@ central.connect(peripheral) { result in
 Some operations (like scanning) conform to `AsyncStream`, meaning you can use for-await-in loops to iterate over new items.
 
 ```swift
-for await peripheral in await central.scanForPeripherals() {
+for try await peripheral in await central.scanForPeripherals() {
   print("Discovered:", peripheral.name ?? "Unknown")
 }
 ```
+> **Note**
+Streams report failures rather than ending quietly, so a scan that stops because Bluetooth was switched off throws. Asking a scan to stop, or its timeout elapsing, finishes it normally.
 
 #### Defining characteristics
 
@@ -123,6 +125,11 @@ typealias CBPeripheralDelegate     = SwiftBluetooth.PeripheralDelegate
 // But now you have access to all the new API's!
 ```
 
+## Upgrading from 1.x
+
+See [MIGRATION.md](MIGRATION.md). In short: nothing traps any more, streams report why they
+ended, and `waitUntilReady()` became `wait(for:)`.
+
 
 ## Install
 
@@ -140,7 +147,7 @@ let package = Package(
   ...
   dependencies: [
     // Add the package to your dependencies
-    .package(url: "https://github.com/exPHAT/SwiftBluetooth.git", from: "1.1.0"),
+    .package(url: "https://github.com/exPHAT/SwiftBluetooth.git", from: "2.0.0"),
   ],
   ...
   targets: [

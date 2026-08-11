@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public extension CentralManager {
     /// Waits until the manager reaches a given state.

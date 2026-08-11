@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 @dynamicMemberLookup
 public final class Peripheral: NSObject {

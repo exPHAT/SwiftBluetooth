@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 internal enum PeripheralEvent {
     case discoveredServices([CBService], Error?)

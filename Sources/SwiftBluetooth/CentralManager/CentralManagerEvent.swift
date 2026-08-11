@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 internal enum CentralManagerEvent {
     case stateUpdated(CBManagerState)

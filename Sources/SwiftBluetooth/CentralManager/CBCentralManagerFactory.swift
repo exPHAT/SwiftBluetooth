@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 // This is used to match CoreBluetoothMocks factory.
 // This file is ignored by the Package.swift when SwiftBluetoothMock is used.

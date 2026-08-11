@@ -28,19 +28,6 @@ internal func withCancellableContinuation<T>(
     }
 }
 
-/// Carries a value to the task waiting on it, across a boundary the compiler can't check.
-///
-/// CoreBluetooth's types aren't `Sendable` and its callbacks arrive on its own queue, so
-/// handing a result to a waiting task is always an unchecked handover. The operation has
-/// given the value up by the time it's passed here.
-private struct UncheckedTransfer<Value>: @unchecked Sendable {
-    let value: Value
-
-    init(_ value: Value) {
-        self.value = value
-    }
-}
-
 /// Resume-once state machine shared between the continuation, the operation's
 /// completion handler, and the cancellation handler, which all run on different threads.
 ///

@@ -1,4 +1,4 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 extension CBUUID: @unchecked @retroactive Sendable { }

@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public protocol CentralManagerDelegate: AnyObject {
     func centralManagerDidUpdateState(_ central: CentralManager)

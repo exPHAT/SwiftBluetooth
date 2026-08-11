@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     private weak var parent: CentralManager?
@@ -81,8 +81,10 @@ internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDe
 
         parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
 
+        let transfer = UncheckedTransfer(advertisementData)
+
         parent.eventQueue.async {
-            parent.eventSubscriptions.receive(.discovered(peripheral, advertisementData, RSSI))
+            parent.eventSubscriptions.receive(.discovered(peripheral, transfer.value, RSSI))
         }
     }
 
@@ -97,8 +99,10 @@ internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDe
 
         parent.delegate?.centralManager(parent, willRestoreState: dict)
 
+        let transfer = UncheckedTransfer(dict)
+
         parent.eventQueue.async {
-            parent.eventSubscriptions.receive(.restoreState(dict))
+            parent.eventSubscriptions.receive(.restoreState(transfer.value))
         }
     }
 

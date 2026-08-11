@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 public struct Characteristic: Hashable, Equatable, ExpressibleByStringLiteral, Sendable {
     public var uuid: CBUUID

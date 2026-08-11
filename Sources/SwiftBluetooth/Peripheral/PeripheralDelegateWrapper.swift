@@ -1,5 +1,5 @@
 import Foundation
-import CoreBluetooth
+@preconcurrency import CoreBluetooth
 
 internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     private weak var parent: Peripheral?
