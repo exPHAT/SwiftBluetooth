@@ -5,7 +5,7 @@ import Foundation
 /// An operation can finish, time out, and be cancelled at very nearly the same moment,
 /// from different queues. Whichever gets there first is the one the caller hears about,
 /// and the rest are dropped.
-internal final class SingleUseHandler<Success> {
+internal final class SingleUseHandler<Success>: @unchecked Sendable {
     private let lock = NSLock()
     private var handler: ((Result<Success, Error>) -> Void)?
 

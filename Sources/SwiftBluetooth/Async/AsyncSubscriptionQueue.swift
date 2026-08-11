@@ -1,6 +1,6 @@
 import Foundation
 
-internal final class AsyncSubscriptionQueue<Value> {
+internal final class AsyncSubscriptionQueue<Value>: @unchecked Sendable {
     private var items: [AsyncSubscription<Value>] = []
     private let lock = NSLock()
 

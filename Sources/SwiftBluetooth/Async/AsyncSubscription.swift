@@ -1,6 +1,8 @@
 import Foundation
 
-internal struct AsyncSubscription<Value>: Identifiable, Equatable, CancellableTask {
+// Unchecked because the compiler can't see that the queue this belongs to serializes
+// every delivery, and guards its own membership with a lock
+internal struct AsyncSubscription<Value>: Identifiable, Equatable, CancellableTask, @unchecked Sendable {
     public let id = UUID()
     weak var parent: AsyncSubscriptionQueue<Value>?
     let block: (Value, () -> Void) -> Void

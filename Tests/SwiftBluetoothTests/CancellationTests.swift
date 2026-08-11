@@ -7,7 +7,7 @@ import XCTest
 /// the timeout and the cancellation interleave.
 final class CancellableContinuationTests: XCTestCase {
     private struct SpyTask: CancellableTask {
-        let onCancel: () -> Void
+        let onCancel: @Sendable () -> Void
 
         func cancel() {
             onCancel()

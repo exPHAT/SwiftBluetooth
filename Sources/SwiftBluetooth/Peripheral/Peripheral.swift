@@ -17,6 +17,9 @@ public final class Peripheral: NSObject {
     internal let eventQueue: DispatchQueue
     internal let responseMap: AsyncSubscriptionQueueMap<CBUUID, Result<Data, Error>>
     internal let writeMap: AsyncSubscriptionQueueMap<CBUUID, Error?>
+    // Kept apart from `writeMap` because a descriptor and a characteristic can share a UUID,
+    // and a write to one would otherwise complete a write to the other
+    internal let descriptorWriteMap: AsyncSubscriptionQueueMap<CBUUID, Error?>
     internal let descriptorMap: AsyncSubscriptionQueueMap<CBUUID, Result<Any?, Error>>
     internal let eventSubscriptions: AsyncSubscriptionQueue<PeripheralEvent>
 
@@ -91,6 +94,7 @@ public final class Peripheral: NSObject {
         self.eventQueue = queue
         self.responseMap = .init(queue)
         self.writeMap = .init(queue)
+        self.descriptorWriteMap = .init(queue)
         self.descriptorMap = .init(queue)
         self.eventSubscriptions = .init(queue)
         self._cbPeripheral = cbPeripheral

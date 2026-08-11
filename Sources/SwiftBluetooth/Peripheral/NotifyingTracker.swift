@@ -1,6 +1,6 @@
 import Foundation
 
-internal final class NotifyingTracker<Key> where Key: Hashable {
+internal final class NotifyingTracker<Key>: @unchecked Sendable where Key: Hashable {
     private var external: [Key: Bool] = [:]
     private var `internal`: [Key: Int] = [:]
 

@@ -16,6 +16,7 @@ public protocol PeripheralDelegate: AnyObject {
     func peripheral(_ peripheral: Peripheral, didOpen channel: CBL2CAPChannel?, error: Error?)
 
     func peripheralDidUpdateName(_ peripheral: Peripheral)
+    func peripheralIsReady(toSendWriteWithoutResponse peripheral: Peripheral)
 }
 
 // Default values
@@ -34,4 +35,5 @@ public extension PeripheralDelegate {
     func peripheral(_ peripheral: Peripheral, didOpen channel: CBL2CAPChannel?, error: Error?) { }
 
     func peripheralDidUpdateName(_ peripheral: Peripheral) { }
+    func peripheralIsReady(toSendWriteWithoutResponse peripheral: Peripheral) { }
 }

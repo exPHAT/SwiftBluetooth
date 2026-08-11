@@ -141,6 +141,11 @@ public extension Peripheral {
         }
     }
 
+    /// Writes a value to a characteristic.
+    ///
+    /// A `.withResponse` write completes once the peripheral acknowledges it. A `.withoutResponse`
+    /// write completes once it has been handed to CoreBluetooth, waiting first if the peripheral
+    /// isn't ready to accept one — writing regardless is how these get dropped without a trace.
     @discardableResult
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
@@ -157,36 +162,61 @@ public extension Peripheral {
                 return
             }
 
-            if type == .withResponse {
-                var task1: AsyncSubscription<Error?>?
-                var task2: AsyncSubscription<PeripheralEvent>?
-
-                task1 = writeMap.queue(key: characteristic.uuid) { error, done in
-                    completionHandler(error.map { .failure($0) } ?? .success(()))
-                    task2?.cancel()
-                    done()
-                }
-
-                task2 = eventSubscriptions.queue { event, done in
-                    guard case .didDisconnect(let error) = event else { return }
-
-                    completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
-                    task1?.cancel()
-                    done()
-                }
-
-                handle.add(task1)
-                handle.add(task2)
+            guard type == .withResponse else {
+                writeWithoutResponse(data, for: characteristic, handle: handle, completionHandler: completionHandler)
+                return
             }
 
-            writeValue(data, for: characteristic, type: type)
+            var task1: AsyncSubscription<Error?>?
+            var task2: AsyncSubscription<PeripheralEvent>?
 
-            if type == .withoutResponse {
-                completionHandler(.success(()))
+            task1 = writeMap.queue(key: characteristic.uuid) { error, done in
+                completionHandler(error.map { .failure($0) } ?? .success(()))
+                task2?.cancel()
+                done()
             }
+
+            task2 = eventSubscriptions.queue { event, done in
+                guard case .didDisconnect(let error) = event else { return }
+
+                completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+                task1?.cancel()
+                done()
+            }
+
+            handle.add(task1)
+            handle.add(task2)
+
+            writeValue(data, for: characteristic, type: .withResponse)
         }
 
         return handle
+    }
+
+    /// Sends a write the peripheral won't acknowledge, once it has room to accept one.
+    ///
+    /// CoreBluetooth discards these when its buffer is full, so sending without checking
+    /// loses the write silently.
+    private func writeWithoutResponse(_ data: Data, for characteristic: CBCharacteristic, handle: DeferredCancellableTask, completionHandler: SingleUseHandler<Void>) {
+        guard !cbPeripheral.canSendWriteWithoutResponse else {
+            writeValue(data, for: characteristic, type: .withoutResponse)
+            completionHandler(.success(()))
+            return
+        }
+
+        handle.add(eventSubscriptions.queue { [weak self] event, done in
+            switch event {
+            case .didDisconnect(let error):
+                completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
+            case .isReadyToWriteWithoutResponse:
+                self?.writeValue(data, for: characteristic, type: .withoutResponse)
+                completionHandler(.success(()))
+            default:
+                return
+            }
+
+            done()
+        })
     }
 
     @discardableResult
@@ -208,7 +238,7 @@ public extension Peripheral {
             var task1: AsyncSubscription<Error?>?
             var task2: AsyncSubscription<PeripheralEvent>?
 
-            task1 = writeMap.queue(key: descriptor.uuid) { error, done in
+            task1 = descriptorWriteMap.queue(key: descriptor.uuid) { error, done in
                 completionHandler(error.map { .failure($0) } ?? .success(()))
                 task2?.cancel()
                 done()

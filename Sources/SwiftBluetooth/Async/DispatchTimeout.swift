@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Firing on the same queue the events are delivered on means a timeout can never
 /// overlap with the event it's racing: whichever runs first cancels the other.
-internal final class DispatchTimeout {
+internal final class DispatchTimeout: @unchecked Sendable {
     private let lock = NSLock()
     private var handler: (() -> Void)?
 

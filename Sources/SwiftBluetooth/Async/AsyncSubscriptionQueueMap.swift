@@ -1,6 +1,6 @@
 import Foundation
 
-internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
+internal final class AsyncSubscriptionQueueMap<Key, Value>: @unchecked Sendable where Key: Hashable {
     private var items: [Key: AsyncSubscriptionQueue<Value>] = [:]
     private let lock = NSLock()
 

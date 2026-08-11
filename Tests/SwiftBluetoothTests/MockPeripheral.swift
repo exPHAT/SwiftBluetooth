@@ -1,11 +1,14 @@
 import Foundation
 @testable import CoreBluetoothMock
 
-private class ConnectablePeripheralDelegateSpec: CBMPeripheralSpecDelegate {
+class ConnectablePeripheralDelegateSpec: CBMPeripheralSpecDelegate {
     var values: [CBMUUID: Data] = [:]
+    /// Counts writes without response, which the peripheral drops when its buffer is full
+    private(set) var writeCommandCount = 0
 
     func reset() {
         values = [:]
+        writeCommandCount = 0
     }
 
     func peripheralDidReceiveConnectionRequest(_ peripheral: CBMPeripheralSpec) -> Result<Void, Error> {
@@ -18,6 +21,7 @@ private class ConnectablePeripheralDelegateSpec: CBMPeripheralSpecDelegate {
 
     func peripheral(_ peripheral: CBMPeripheralSpec, didReceiveWriteCommandFor characteristic: CBMCharacteristicMock, data: Data) {
         values[characteristic.uuid] = data
+        writeCommandCount += 1
     }
 
     func peripheral(_ peripheral: CBMPeripheralSpec, didReceiveWriteRequestFor characteristic: CBMCharacteristicMock, data: Data) -> Result<Void, Error> {

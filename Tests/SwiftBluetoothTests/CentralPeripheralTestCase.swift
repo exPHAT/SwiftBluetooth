@@ -151,29 +151,41 @@ class CentralPeripheralTestCase: XCTestCase {
 
             XCTAssertTrue(peripheral.responseMap.isEmpty)
             XCTAssertTrue(peripheral.writeMap.isEmpty)
+            XCTAssertTrue(peripheral.descriptorWriteMap.isEmpty)
             XCTAssertTrue(peripheral.descriptorMap.isEmpty)
             XCTAssertTrue(peripheral.eventSubscriptions.isEmpty)
         }
 
         XCTAssertTrue(central.eventSubscriptions.isEmpty)
 
-        weak let weakCentral = central
+        let centralRef = WeakRef(central)
 
         if hadPeripheral {
-            weak let weakPeripheral = peripheral
+            let peripheralRef = WeakRef(peripheral)
 
             peripheral = nil
 
-            if weakPeripheral != nil {
-                XCTFail("Peripheral is being retained")
-            }
+            XCTAssertTrue(peripheralRef.isReleased, "Peripheral is being retained")
         }
 
         peripheral = nil
         central = nil
         DispatchQueue.main.sync { }
-        XCTAssertNil(weakCentral)
+        XCTAssertTrue(centralRef.isReleased, "CentralManager is being retained")
 
         CBMCentralManagerMock.tearDownSimulation()
+    }
+}
+
+/// Watches an object without keeping it alive, so a test can tell whether it was released.
+private final class WeakRef<Object: AnyObject> {
+    private weak var object: Object?
+
+    init(_ object: Object) {
+        self.object = object
+    }
+
+    var isReleased: Bool {
+        object == nil
     }
 }

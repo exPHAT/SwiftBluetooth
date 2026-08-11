@@ -26,22 +26,17 @@ public extension Peripheral {
     /// peripheral disconnects or reports an error while it's subscribed.
     func readValues(for characteristic: CBCharacteristic) -> AsyncThrowingStream<Data, Error> {
         .init { cont in
-            var task1: AsyncSubscription<Result<Data, Error>>?
-            var task2: AsyncSubscription<PeripheralEvent>?
+            // The value and disconnection subscriptions end together, whichever finishes
+            // the stream, so they're cancelled as a pair
+            let subscriptions = DeferredCancellableTask()
 
-            let cancelBoth = {
-                task1?.cancel()
-                task2?.cancel()
-            }
-
-            task1 = responseMap.queue(key: characteristic.uuid) { result, done in
+            let values = responseMap.queue(key: characteristic.uuid) { result, done in
                 switch result {
                 case .success(let data):
                     cont.yield(data)
                 case .failure(let error):
                     cont.finish(throwing: error)
-                    task2?.cancel()
-                    done()
+                    subscriptions.cancel()
                 }
             } completion: { [weak self] in
                 guard let self = self else { return }
@@ -53,11 +48,12 @@ public extension Peripheral {
                 self.cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
             }
 
-            task2 = eventSubscriptions.queue { event, done in
+            subscriptions.add(values)
+
+            subscriptions.add(eventSubscriptions.queue { event, done in
                 if case .didDisconnect(let error) = event {
                     cont.finish(throwing: error ?? CBError(.peripheralDisconnected))
-                    task1?.cancel()
-                    done()
+                    subscriptions.cancel()
                     return
                 }
 
@@ -68,13 +64,11 @@ public extension Peripheral {
                 // Notifications being turned off is how this stream is meant to end;
                 // anything else stopping them is a failure
                 cont.finish(throwing: error)
-                task1?.cancel()
-                done()
-            }
-
+                subscriptions.cancel()
+            })
 
             cont.onTermination = { _ in
-                cancelBoth()
+                subscriptions.cancel()
             }
 
             notifyingState.addInternal(forKey: characteristic.uuid)

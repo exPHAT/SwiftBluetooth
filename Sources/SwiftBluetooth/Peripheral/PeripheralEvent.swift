@@ -8,5 +8,6 @@ internal enum PeripheralEvent {
     case updateNotificationState(CBCharacteristic, Error?)
     case readRSSI(NSNumber, Error?)
     case didOpenL2CAPChannel(CBL2CAPChannel?, Error?)
+    case isReadyToWriteWithoutResponse
     case didDisconnect(Error?)
 }

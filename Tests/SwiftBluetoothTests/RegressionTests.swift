@@ -358,6 +358,106 @@ final class RegressionTests: CentralPeripheralTestCase {
         }
     }
 
+    // The wrapper never forwarded this one, so a caller waiting to send more had no signal.
+    // It's also what a deferred write-without-response waits for.
+    func testPeripheralReadyToSendIsForwarded() async throws {
+        try await withTimeout { [self] in
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
+            try await central.connect(peripheral, timeout: connectionTimeout)
+
+            let forwarded = expectation(description: "ready-to-send forwarded to the subscription")
+
+            peripheral.eventSubscriptions.queue { event, done in
+                guard case .isReadyToWriteWithoutResponse = event else { return }
+
+                done()
+                forwarded.fulfill()
+            }
+
+            let cbPeripheral = peripheral.cbPeripheral
+            DispatchQueue.main.async {
+                cbPeripheral.delegate?.peripheralIsReady(toSendWriteWithoutResponse: cbPeripheral)
+            }
+
+            await fulfillment(of: [forwarded], timeout: 5)
+        }
+    }
+
+    // Every write without response has to be reported back, and none may be lost on the way.
+    // CoreBluetoothMock refills its outgoing buffer too eagerly to exercise exhaustion here,
+    // so this covers the reporting rather than the deferral.
+    func testWritesWithoutResponseAreAllDelivered() async throws {
+        try await withTimeout(20) { [self] in
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
+            try await central.connect(peripheral, timeout: connectionTimeout)
+
+            for service in try await peripheral.discoverServices() {
+                _ = try await peripheral.discoverCharacteristics(for: service)
+            }
+
+            let characteristic = try XCTUnwrap(peripheral.characteristic(for: .firstChar))
+
+            // Comfortably more than the mock's outgoing buffer, and issued without waiting
+            // for each one, so the buffer runs out part way through
+            let writes = 60
+            let allWritten = expectation(description: "every write reported back")
+            allWritten.expectedFulfillmentCount = writes
+
+            for value in 0..<writes {
+                peripheral.writeValue(Data([UInt8(value)]), for: characteristic, type: .withoutResponse) { _ in
+                    allWritten.fulfill()
+                }
+            }
+
+            await fulfillment(of: [allWritten], timeout: 10)
+
+            let received = mockPeripheral.connectionDelegate as? ConnectablePeripheralDelegateSpec
+            XCTAssertEqual(received?.writeCommandCount, writes, "Every write should have reached the peripheral")
+        }
+    }
+
+    // Characteristic and descriptor writes shared one map keyed by UUID, so a descriptor
+    // write could complete a characteristic write to the same UUID and vice versa
+    func testDescriptorWritesDoNotCompleteCharacteristicWrites() async throws {
+        try await withTimeout { [self] in
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
+            try await central.connect(peripheral, timeout: connectionTimeout)
+
+            for service in try await peripheral.discoverServices() {
+                _ = try await peripheral.discoverCharacteristics(for: service)
+            }
+
+            let uuid = try XCTUnwrap(peripheral.characteristic(for: .firstChar)).uuid
+
+            let crossed = expectation(description: "descriptor write answered a characteristic write")
+            crossed.isInverted = true
+
+            let waiting = peripheral.writeMap.queue(key: uuid) { _, done in
+                done()
+                crossed.fulfill()
+            }
+
+            peripheral.descriptorWriteMap.receive(key: uuid, withValue: nil)
+            await fulfillment(of: [crossed], timeout: 1)
+
+            waiting.cancel()
+
+            // The characteristic's own event still gets through
+            let written = expectation(description: "characteristic write completed")
+
+            peripheral.writeMap.queue(key: uuid) { _, done in
+                done()
+                written.fulfill()
+            }
+
+            peripheral.writeMap.receive(key: uuid, withValue: nil)
+            await fulfillment(of: [written], timeout: 5)
+        }
+    }
+
     // Waiting was hardcoded to powered-on, so waiting for anything else was impossible
     // and a powered-off manager waited forever with no way out
     func testWaitingForAnyState() async throws {

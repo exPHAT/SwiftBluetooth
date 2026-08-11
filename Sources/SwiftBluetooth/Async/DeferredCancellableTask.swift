@@ -5,7 +5,7 @@ import Foundation
 /// Operations register their subscriptions asynchronously on an event queue, so the
 /// caller gets this back immediately. Cancelling it cancels whatever has been added
 /// so far, and anything added afterwards is cancelled on arrival.
-internal final class DeferredCancellableTask: CancellableTask {
+internal final class DeferredCancellableTask: CancellableTask, @unchecked Sendable {
     private let lock = NSLock()
     private var children: [CancellableTask] = []
     private var cancelled = false

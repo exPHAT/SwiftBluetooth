@@ -9,7 +9,7 @@ import Foundation
 ///   - register: starts the operation, returning a handle used to cancel it. The
 ///     completion may be called more than once — every call after the first is ignored.
 internal func withCancellableContinuation<T>(
-    onCancel: (() -> Void)? = nil,
+    onCancel: (@Sendable () -> Void)? = nil,
     register: (@escaping (Result<T, Error>) -> Void) -> CancellableTask
 ) async throws -> T {
     let state = CancellableContinuationState<T>()
@@ -20,7 +20,7 @@ internal func withCancellableContinuation<T>(
             guard state.bind(continuation) else { return }
 
             state.attach(register { result in
-                state.resume(result)
+                state.resume(UncheckedTransfer(result))
             })
         }
     } onCancel: {
@@ -28,11 +28,24 @@ internal func withCancellableContinuation<T>(
     }
 }
 
+/// Carries a value to the task waiting on it, across a boundary the compiler can't check.
+///
+/// CoreBluetooth's types aren't `Sendable` and its callbacks arrive on its own queue, so
+/// handing a result to a waiting task is always an unchecked handover. The operation has
+/// given the value up by the time it's passed here.
+private struct UncheckedTransfer<Value>: @unchecked Sendable {
+    let value: Value
+
+    init(_ value: Value) {
+        self.value = value
+    }
+}
+
 /// Resume-once state machine shared between the continuation, the operation's
 /// completion handler, and the cancellation handler, which all run on different threads.
 ///
 /// Continuations are resumed and tasks cancelled outside the lock.
-private final class CancellableContinuationState<T> {
+private final class CancellableContinuationState<T>: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<T, Error>?
     private var attached: CancellableTask?
@@ -70,7 +83,7 @@ private final class CancellableContinuationState<T> {
         }
     }
 
-    func resume(_ result: Result<T, Error>) {
+    func resume(_ transfer: UncheckedTransfer<Result<T, Error>>) {
         lock.lock()
 
         guard !finished, let continuation = continuation else {
@@ -83,7 +96,7 @@ private final class CancellableContinuationState<T> {
         attached = nil
         lock.unlock()
 
-        continuation.resume(with: result)
+        continuation.resume(with: transfer.value)
     }
 
     func cancel(performing extraWork: (() -> Void)?) {

@@ -73,7 +73,7 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didWriteValueFor descriptor: CBDescriptor, error: Error?) {
         guard let parent = parent else { return }
 
-        parent.writeMap.receive(key: descriptor.uuid, withValue: error)
+        parent.descriptorWriteMap.receive(key: descriptor.uuid, withValue: error)
         parent.delegate?.peripheral(parent, didWriteValueFor: descriptor, error: error)
     }
 
@@ -92,6 +92,12 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didModifyServices services: [CBService]) {
         guard let parent = parent else { return }
         parent.delegate?.peripheral(parent, didModifyServices: services)
+    }
+
+    func peripheralIsReady(toSendWriteWithoutResponse peripheral: CBPeripheral) {
+        guard let parent = parent else { return }
+        parent.eventSubscriptions.receive(.isReadyToWriteWithoutResponse)
+        parent.delegate?.peripheralIsReady(toSendWriteWithoutResponse: parent)
     }
 
     func peripheralDidUpdateName(_ peripheral: CBPeripheral) {
