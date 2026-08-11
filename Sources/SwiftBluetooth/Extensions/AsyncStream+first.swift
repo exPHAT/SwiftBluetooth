@@ -2,6 +2,7 @@ import Foundation
 
 // Convenience API for people interfacing with AsyncStream. Not sure why this isn't in Foundation by default...
 public extension AsyncStream {
+    /// The first element, or `nil` if the stream finished without producing one.
     var first: Element? {
         get async {
             await first(where: { _ in true })

@@ -1,6 +1,13 @@
 import Foundation
 @preconcurrency import CoreBluetooth
 
+/// Receives the same callbacks as `CBPeripheralDelegate`, with ``Peripheral`` in place of
+/// `CBPeripheral`.
+///
+/// Every method has a do-nothing default, so conform and implement only what you need.
+///
+/// Callbacks arrive on the queue the ``CentralManager`` was created with, matching how
+/// CoreBluetooth delivers them.
 public protocol PeripheralDelegate: AnyObject {
     func peripheral(_ peripheral: Peripheral, didDiscoverServices error: Error?)
     func peripheral(_ peripheral: Peripheral, didDiscoverIncludedServicesFor service: CBService, error: Error?)

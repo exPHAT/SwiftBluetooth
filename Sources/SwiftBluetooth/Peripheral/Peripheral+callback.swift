@@ -401,7 +401,7 @@ public extension Peripheral {
     /// Turns notifications for a characteristic on or off.
     ///
     /// Whether the characteristic ends up notifying is readable from `characteristic.isNotifying`.
-    /// It can differ from what was asked for, since a value stream started by ``readValues(for:)``
+    /// It can differ from what was asked for, since a value stream started by ``readValues(for:)-(CBCharacteristic)``
     /// keeps notifications on until it ends.
     @discardableResult
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {

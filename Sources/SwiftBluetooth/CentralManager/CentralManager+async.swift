@@ -25,6 +25,11 @@ public extension CentralManager {
     }
 
     @discardableResult
+    /// Connects to a peripheral, returning once it's connected.
+    ///
+    /// Throws `CBError.connectionTimeout` if `timeout` elapses first. Cancelling the surrounding
+    /// task also cancels the pending connection, so a connection can't land after you've stopped
+    /// waiting for it.
     func connect(_ peripheral: Peripheral, timeout: TimeInterval = .infinity, options: [String: Any]? = nil) async throws -> Peripheral {
         try await withCancellableContinuation {
             // Cancelling only stops us waiting, so the pending connection is torn down too
@@ -76,6 +81,7 @@ public extension CentralManager {
         }
     }
 
+    /// Disconnects from a peripheral, returning once it's disconnected.
     func cancelPeripheralConnection(_ peripheral: Peripheral) async throws {
         try await withCancellableContinuation { completion in
             self.cancelPeripheralConnection(peripheral, completionHandler: completion)

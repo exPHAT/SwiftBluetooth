@@ -12,7 +12,8 @@ public extension CentralManager {
     ///
     /// - Parameters:
     ///   - state: The state to wait for.
-    ///   - timeout: How long to wait before giving up. Waits indefinitely by default.
+    ///   - timeoutInterval: How long to wait before giving up. Waits indefinitely by default.
+    ///   - completionHandler: Called once the state is reached, or with the reason it wasn't.
     @discardableResult
     func wait(for state: CBManagerState, timeout timeoutInterval: TimeInterval = .infinity, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()

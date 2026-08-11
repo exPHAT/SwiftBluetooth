@@ -2,18 +2,21 @@ import Foundation
 @preconcurrency import CoreBluetooth
 
 public extension Peripheral {
+    /// Reads the current value of a characteristic.
     func readValue(for characteristic: CBCharacteristic) async throws -> Data {
         try await withCancellableContinuation { completion in
             self.readValue(for: characteristic, completionHandler: completion)
         }
     }
 
+    /// Reads the current value of a characteristic that's already been discovered.
     func readValue(for characteristic: Characteristic) async throws -> Data {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await readValue(for: mappedCharacteristic)
     }
 
+    /// Reads the current value of a descriptor.
     func readValue(for descriptor: CBDescriptor) async throws -> Any? {
         try await withCancellableContinuation { completion in
             self.readValue(for: descriptor, completionHandler: completion)
@@ -86,12 +89,18 @@ public extension Peripheral {
         return readValues(for: mappedCharacteristic)
     }
 
+    /// Writes a value to a characteristic.
+    ///
+    /// A `.withResponse` write returns once the peripheral acknowledges it. A `.withoutResponse`
+    /// write returns once it's been handed to CoreBluetooth, waiting first if the peripheral
+    /// isn't ready to take one.
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) async throws {
         try await withCancellableContinuation { completion in
             self.writeValue(data, for: characteristic, type: type, completionHandler: completion)
         }
     }
 
+    /// Writes a value to a descriptor.
     func writeValue(_ data: Data, for descriptor: CBDescriptor) async throws {
         try await withCancellableContinuation { completion in
             self.writeValue(data, for: descriptor, completionHandler: completion)
@@ -104,12 +113,16 @@ public extension Peripheral {
         return try await writeValue(data, for: mappedCharacteristic, type: type)
     }
 
+    /// Discovers the peripheral's services, or all of them when `serviceUUIDs` is `nil`.
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil) async throws -> [CBService] {
         try await withCancellableContinuation { completion in
             self.discoverServices(serviceUUIDs, completionHandler: completion)
         }
     }
 
+    /// Discovers characteristics of a service, or all of them when `characteristicUUIDs` is `nil`.
+    ///
+    /// A ``Characteristic`` can only be used once it's been discovered this way.
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async throws -> [CBCharacteristic] {
         try await withCancellableContinuation { completion in
             self.discoverCharacteristics(characteristicUUIDs, for: service, completionHandler: completion)
@@ -122,6 +135,7 @@ public extension Peripheral {
         }
     }
 
+    /// Discovers a characteristic's descriptors.
     func discoverDescriptors(for characteristic: CBCharacteristic) async throws -> [CBDescriptor] {
         try await withCancellableContinuation { completion in
             self.discoverDescriptors(for: characteristic, completionHandler: completion)
@@ -137,7 +151,7 @@ public extension Peripheral {
     /// Turns notifications for a characteristic on or off.
     ///
     /// Whether the characteristic ends up notifying is readable from `characteristic.isNotifying`.
-    /// It can differ from what was asked for, since a value stream started by ``readValues(for:)``
+    /// It can differ from what was asked for, since a value stream started by ``readValues(for:)-(CBCharacteristic)``
     /// keeps notifications on until it ends.
     func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) async throws {
         try await withCancellableContinuation { completion in
@@ -151,6 +165,7 @@ public extension Peripheral {
         return try await setNotifyValue(value, for: mappedCharacteristic)
     }
 
+    /// Reads the current signal strength of the connection, in decibels.
     func readRSSI() async throws -> NSNumber {
         try await withCancellableContinuation { completion in
             self.readRSSI(completionHandler: completion)
