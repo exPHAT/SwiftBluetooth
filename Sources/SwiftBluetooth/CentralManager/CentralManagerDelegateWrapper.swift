@@ -1,7 +1,7 @@
 import Foundation
 import CoreBluetooth
 
-class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
+internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
     private weak var parent: CentralManager?
 
     init(parent: CentralManager) {
@@ -19,7 +19,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         let state = central.state
 
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.stateUpdated(state))
+            parent.eventSubscriptions.receive(.stateUpdated(state))
 
             // Losing the radio invalidates every peripheral without CoreBluetooth
             // reporting a disconnection for any of them
@@ -40,7 +40,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         parent.delegate?.centralManager(parent, didConnect: peripheral)
 
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.connected(peripheral))
+            parent.eventSubscriptions.receive(.connected(peripheral))
         }
     }
 
@@ -58,8 +58,8 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         // with `CentralManager.forgetPeripheral(_:)`.
 
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.disconnected(peripheral, error))
-            peripheral.eventSubscriptions.recieve(.didDisconnect(error))
+            parent.eventSubscriptions.receive(.disconnected(peripheral, error))
+            peripheral.eventSubscriptions.receive(.didDisconnect(error))
         }
     }
 
@@ -70,7 +70,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         parent.delegate?.centralManager(parent, didFailToConnect: peripheral, error: error)
 
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.failToConnect(peripheral, error))
+            parent.eventSubscriptions.receive(.failToConnect(peripheral, error))
         }
     }
 
@@ -82,7 +82,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
 
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.discovered(peripheral, advertisementData, RSSI))
+            parent.eventSubscriptions.receive(.discovered(peripheral, advertisementData, RSSI))
         }
     }
 
@@ -98,7 +98,7 @@ class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
         parent.delegate?.centralManager(parent, willRestoreState: dict)
 
         parent.eventQueue.async {
-            parent.eventSubscriptions.recieve(.restoreState(dict))
+            parent.eventSubscriptions.receive(.restoreState(dict))
         }
     }
 

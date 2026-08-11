@@ -5,14 +5,13 @@ import XCTest
 /// The completion-handler API is a first-class alternative to the async one, so it gets
 /// the same walk through connect, discover, read, write and subscribe.
 final class CallbackAPITests: CentralPeripheralTestCase {
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testWaitUntilReady() async throws {
         CBMCentralManagerMock.simulateInitialState(.poweredOff)
         central = CentralManager()
 
         let ready = expectation(description: "central ready")
 
-        central.waitUntilReady { result in
+        central.wait(for: .poweredOn) { result in
             if case .failure(let error) = result {
                 XCTFail("Should become ready, got \(error)")
             }
@@ -26,9 +25,8 @@ final class CallbackAPITests: CentralPeripheralTestCase {
         XCTAssertEqual(central.state, .poweredOn)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testScanConnectDiscoverReadWrite() async throws {
-        try await central.waitUntilReady()
+        try await central.wait(for: .poweredOn)
 
         let found = expectation(description: "peripheral found")
         found.assertForOverFulfill = false
@@ -81,8 +79,11 @@ final class CallbackAPITests: CentralPeripheralTestCase {
         let characteristic = try XCTUnwrap(peripheral.characteristic(for: .firstChar))
 
         let written = expectation(description: "value written")
-        peripheral.writeValue(Data([0x01]), for: characteristic, type: .withResponse) { error in
-            XCTAssertNil(error)
+        peripheral.writeValue(Data([0x01]), for: characteristic, type: .withResponse) { result in
+            if case .failure(let error) = result {
+                XCTFail("Expected the write to succeed, got \(error)")
+            }
+
             written.fulfill()
         }
         await fulfillment(of: [written], timeout: 5)
@@ -112,10 +113,9 @@ final class CallbackAPITests: CentralPeripheralTestCase {
         await fulfillment(of: [disconnected], timeout: 5)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadValuesDeliversUpdatesUntilCancelled() async throws {
-        try await central.waitUntilReady()
-        peripheral = await central.scanForPeripherals().first!
+        try await central.wait(for: .poweredOn)
+        peripheral = try await central.scanForPeripherals().first!
         try await central.connect(peripheral, timeout: connectionTimeout)
 
         for service in try await peripheral.discoverServices() {
@@ -149,10 +149,9 @@ final class CallbackAPITests: CentralPeripheralTestCase {
         XCTAssertFalse(characteristic.isNotifying)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testSetNotifyValueReportsState() async throws {
-        try await central.waitUntilReady()
-        peripheral = await central.scanForPeripherals().first!
+        try await central.wait(for: .poweredOn)
+        peripheral = try await central.scanForPeripherals().first!
         try await central.connect(peripheral, timeout: connectionTimeout)
 
         for service in try await peripheral.discoverServices() {
@@ -163,7 +162,10 @@ final class CallbackAPITests: CentralPeripheralTestCase {
 
         let notifying = expectation(description: "notifications enabled")
         peripheral.setNotifyValue(true, for: characteristic) { result in
-            XCTAssertEqual(try? result.get(), true)
+            if case .failure(let error) = result {
+                XCTFail("Should enable notifications, got \(error)")
+            }
+
             notifying.fulfill()
         }
         await fulfillment(of: [notifying], timeout: 5)
@@ -171,7 +173,10 @@ final class CallbackAPITests: CentralPeripheralTestCase {
 
         let stopped = expectation(description: "notifications disabled")
         peripheral.setNotifyValue(false, for: characteristic) { result in
-            XCTAssertEqual(try? result.get(), false)
+            if case .failure(let error) = result {
+                XCTFail("Should disable notifications, got \(error)")
+            }
+
             stopped.fulfill()
         }
         await fulfillment(of: [stopped], timeout: 5)

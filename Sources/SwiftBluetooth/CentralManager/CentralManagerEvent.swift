@@ -8,5 +8,7 @@ internal enum CentralManagerEvent {
     case disconnected(Peripheral, Error?)
     case failToConnect(Peripheral, Error?)
     case restoreState([String: Any])
-    case stopScan
+    /// Carries an error when scanning stopped because the manager can no longer scan,
+    /// rather than because someone asked it to stop.
+    case stopScan(Error?)
 }

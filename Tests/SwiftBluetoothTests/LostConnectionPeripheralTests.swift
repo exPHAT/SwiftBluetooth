@@ -3,11 +3,10 @@ import XCTest
 @testable import SwiftBluetoothMock
 
 final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDiscoverServicesDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             XCTAssertTrue(mockPeripheral.isConnected)
@@ -25,11 +24,10 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadValueDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
@@ -61,11 +59,10 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testWriteValueDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
@@ -97,11 +94,10 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadStreamDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
@@ -122,19 +118,24 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
 
             mockPeripheral.simulateDisconnection()
 
-            for await _ in peripheral.readValues(for: characteristic) {
-                XCTAssert(false)
+            do {
+                for try await _ in peripheral.readValues(for: characteristic) {
+                    XCTFail("Should not deliver values from a disconnected peripheral")
+                }
+
+                XCTFail("Should report the disconnection rather than finishing quietly")
+            } catch {
+                XCTAssertEqual((error as? CBError)?.code, .peripheralDisconnected)
             }
 
             XCTAssertFalse(characteristic.isNotifying)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testSetNotifyDuringDisconnect() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             XCTAssertTrue(mockPeripheral.isConnected)
@@ -164,11 +165,10 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testPeripheralSimultaniousDisconnectAndRead() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
             let services = try await peripheral.discoverServices()
 
@@ -196,8 +196,8 @@ final class LostConnectionPeripheralTests: CentralPeripheralTestCase {
                 XCTAssertEqual(0, ran)
                 ran += 1
             }
-            peripheral.responseMap.recieve(key: characteristic.uuid, withValue: .success(.init([0xFF])))
-            peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
+            peripheral.responseMap.receive(key: characteristic.uuid, withValue: .success(.init([0xFF])))
+            peripheral.eventSubscriptions.receive(.didDisconnect(nil))
 
             #if swift(>=5.8)
             await self.fulfillment(of: [exp])

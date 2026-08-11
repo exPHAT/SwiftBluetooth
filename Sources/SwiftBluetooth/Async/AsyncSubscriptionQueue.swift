@@ -29,7 +29,7 @@ internal final class AsyncSubscriptionQueue<Value> {
         return item
     }
 
-    func recieve(_ value: Value) {
+    func receive(_ value: Value) {
         dispatchQueue.async { [weak self] in
             guard let self = self else { return }
 

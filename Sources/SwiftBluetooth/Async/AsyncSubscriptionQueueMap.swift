@@ -33,11 +33,11 @@ internal final class AsyncSubscriptionQueueMap<Key, Value> where Key: Hashable {
         return queue.queue(block: block, completion: completion)
     }
 
-    func recieve(key: Key, withValue value: Value) {
+    func receive(key: Key, withValue value: Value) {
         lock.lock()
         let queue = items[key]
         lock.unlock()
 
-        queue?.recieve(value)
+        queue?.receive(value)
     }
 }

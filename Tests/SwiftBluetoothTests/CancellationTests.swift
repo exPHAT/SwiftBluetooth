@@ -14,7 +14,6 @@ final class CancellableContinuationTests: XCTestCase {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReturnsResultWhenNotCancelled() async throws {
         let value = try await withCancellableContinuation { (completion: @escaping (Result<Int, Error>) -> Void) in
             completion(.success(7))
@@ -24,7 +23,6 @@ final class CancellableContinuationTests: XCTestCase {
         XCTAssertEqual(value, 7)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testThrowsOperationFailure() async {
         do {
             _ = try await withCancellableContinuation { (completion: @escaping (Result<Int, Error>) -> Void) in
@@ -40,7 +38,6 @@ final class CancellableContinuationTests: XCTestCase {
 
     // Timeouts, disconnections and delegate callbacks can all report the same operation,
     // and resuming a continuation twice is fatal
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testLaterResultsAreIgnored() async throws {
         let value = try await withCancellableContinuation { (completion: @escaping (Result<Int, Error>) -> Void) in
             completion(.success(1))
@@ -52,7 +49,6 @@ final class CancellableContinuationTests: XCTestCase {
         XCTAssertEqual(value, 1)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testCancellingPendingOperationThrowsAndCancelsTheWork() async throws {
         let started = expectation(description: "operation registered")
         let cancelled = expectation(description: "operation cancelled")
@@ -82,7 +78,6 @@ final class CancellableContinuationTests: XCTestCase {
     }
 
     // Cancelling before the operation is ever registered shouldn't start it, or hang
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testCancellingBeforeStartingNeverRegisters() async throws {
         let registered = expectation(description: "operation registered")
         registered.isInverted = true
@@ -109,7 +104,6 @@ final class CancellableContinuationTests: XCTestCase {
         await fulfillment(of: [registered], timeout: 1)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testResultArrivingAfterCancellationIsIgnored() async throws {
         let completionBox = CompletionBox()
         let started = expectation(description: "operation registered")
@@ -160,10 +154,9 @@ final class CancellableContinuationTests: XCTestCase {
 final class OperationCancellationTests: CentralPeripheralTestCase {
     // Whether or not the read wins the race against the cancellation, the subscriptions
     // it registered have to be gone afterwards
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testCancellingReadLeavesNoSubscriptions() async throws {
-        try await central.waitUntilReady()
-        peripheral = await central.scanForPeripherals().first!
+        try await central.wait(for: .poweredOn)
+        peripheral = try await central.scanForPeripherals().first!
         try await central.connect(peripheral, timeout: connectionTimeout)
 
         for service in try await peripheral.discoverServices() {
@@ -193,10 +186,9 @@ final class OperationCancellationTests: CentralPeripheralTestCase {
         XCTAssertTrue(peripheral.eventSubscriptions.isEmpty)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testCancellingDiscoverServicesLeavesNoSubscriptions() async throws {
-        try await central.waitUntilReady()
-        peripheral = await central.scanForPeripherals().first!
+        try await central.wait(for: .poweredOn)
+        peripheral = try await central.scanForPeripherals().first!
         try await central.connect(peripheral, timeout: connectionTimeout)
 
         for _ in 0..<25 {
@@ -216,5 +208,56 @@ final class OperationCancellationTests: CentralPeripheralTestCase {
         try await Task.sleep(nanoseconds: 200_000_000)
 
         XCTAssertTrue(peripheral.eventSubscriptions.isEmpty)
+    }
+
+    // Cancelling a callback operation used to drop the handler on the floor, leaving
+    // the caller with no idea the work had stopped. It has to be reported either side
+    // of registration, or the behaviour depends on timing the caller can't see.
+    func testCancellingCallbackOperationBeforeItRegistersReportsCancellation() async throws {
+        try await connectPeripheral()
+
+        let reported = expectation(description: "completion handler reported cancellation")
+
+        // Cancelled before the operation reaches the event queue and registers anything
+        let task = peripheral.discoverServices { [self] result in
+            assertCancelled(result, reported)
+        }
+
+        task.cancel()
+
+        await fulfillment(of: [reported], timeout: 5)
+    }
+
+    func testCancellingCallbackOperationAfterItRegistersReportsCancellation() async throws {
+        try await connectPeripheral()
+
+        let reported = expectation(description: "completion handler reported cancellation")
+
+        let task = peripheral.discoverServices { [self] result in
+            assertCancelled(result, reported)
+        }
+
+        // Let the operation register its subscriptions before cancelling
+        peripheral.eventQueue.sync { }
+
+        task.cancel()
+
+        await fulfillment(of: [reported], timeout: 5)
+    }
+
+    private func connectPeripheral() async throws {
+        try await central.wait(for: .poweredOn)
+        peripheral = try await central.scanForPeripherals().first!
+        try await central.connect(peripheral, timeout: connectionTimeout)
+    }
+
+    private func assertCancelled<T>(_ result: Result<T, Error>, _ reported: XCTestExpectation) {
+        switch result {
+        case .success:
+            XCTFail("Should not have completed after cancelling")
+        case .failure(let error):
+            XCTAssertTrue(error is CancellationError, "Expected cancellation, got \(error)")
+            reported.fulfill()
+        }
     }
 }

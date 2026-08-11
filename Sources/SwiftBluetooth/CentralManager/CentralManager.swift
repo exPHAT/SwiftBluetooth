@@ -1,7 +1,7 @@
 import Foundation
 import CoreBluetooth
 
-public class CentralManager: NSObject {
+public final class CentralManager: NSObject {
     internal let centralManager: CBCentralManager
 
     // Only ever touched from `init`, which runs on a single thread, so the
@@ -140,11 +140,12 @@ public class CentralManager: NSObject {
         stateLock.unlock()
 
         for peripheral in peripherals {
-            peripheral.eventSubscriptions.recieve(.didDisconnect(error))
-            eventSubscriptions.recieve(.disconnected(peripheral, error))
+            peripheral.eventSubscriptions.receive(.didDisconnect(error))
+            eventSubscriptions.receive(.disconnected(peripheral, error))
         }
 
-        eventSubscriptions.recieve(.stopScan)
+        // Scanning can't continue without a radio, and this isn't something the caller asked for
+        eventSubscriptions.receive(.stopScan(error))
     }
 }
 
@@ -175,7 +176,7 @@ public extension CentralManager {
     /// Only one scan can be in progress at a time, so this ends every scan currently running,
     /// finishing their streams and cancelling their callbacks.
     func stopScan() {
-        eventSubscriptions.recieve(.stopScan)
+        eventSubscriptions.receive(.stopScan(nil))
         centralManager.stopScan()
     }
 
@@ -203,5 +204,4 @@ public extension CentralManager {
 // All of this type's mutable state is guarded by its own lock, and the underlying
 // `CBCentralManager` is safe to use from any thread, so instances can cross isolation
 // boundaries. Unchecked because the compiler can't verify hand-rolled locking.
-@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
 extension CentralManager: @unchecked Sendable { }

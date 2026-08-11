@@ -8,7 +8,6 @@ import Foundation
 ///     the registered operation.
 ///   - register: starts the operation, returning a handle used to cancel it. The
 ///     completion may be called more than once — every call after the first is ignored.
-@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
 internal func withCancellableContinuation<T>(
     onCancel: (() -> Void)? = nil,
     register: (@escaping (Result<T, Error>) -> Void) -> CancellableTask
@@ -33,7 +32,6 @@ internal func withCancellableContinuation<T>(
 /// completion handler, and the cancellation handler, which all run on different threads.
 ///
 /// Continuations are resumed and tasks cancelled outside the lock.
-@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
 private final class CancellableContinuationState<T> {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<T, Error>?

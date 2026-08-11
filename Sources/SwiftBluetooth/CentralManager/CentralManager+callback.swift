@@ -2,52 +2,88 @@ import Foundation
 import CoreBluetooth
 
 public extension CentralManager {
+    /// Waits until the manager reaches a given state, calling `completionHandler` when it does.
+    ///
+    /// Returns straight away if the manager is already in that state.
+    ///
+    /// Some states can't be recovered from — the app not being allowed to use Bluetooth, or the
+    /// device not supporting it — so reaching one of those fails instead of waiting forever.
+    /// Waiting for one of them on purpose still succeeds.
+    ///
+    /// - Parameters:
+    ///   - state: The state to wait for.
+    ///   - timeout: How long to wait before giving up. Waits indefinitely by default.
     @discardableResult
-    func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func wait(for state: CBManagerState, timeout timeoutInterval: TimeInterval = .infinity, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
 
-            guard state != .poweredOn else {
-                completionHandler(.success(Void()))
+            if let result = Self.result(reaching: self.state, whileWaitingFor: state) {
+                completionHandler(result)
                 return
             }
 
-            guard state != .unauthorized else {
-                completionHandler(.failure(CentralError.unauthorized))
-                return
+            var timeout: DispatchTimeout?
+
+            let subscription = eventSubscriptions.queue { event, done in
+                guard case .stateUpdated(let updated) = event,
+                      let result = Self.result(reaching: updated, whileWaitingFor: state) else { return }
+
+                timeout?.cancel()
+                completionHandler(result)
+                done()
             }
 
-            guard state != .unsupported else {
-                completionHandler(.failure(CentralError.unavailable))
-                return
-            }
-
-            handle.add(eventSubscriptions.queue { event, done in
-                guard case .stateUpdated(let state) = event else { return }
-
-                switch state {
-                case .poweredOn:
-                    completionHandler(.success(Void()))
-                case .unauthorized:
-                    completionHandler(.failure(CentralError.unauthorized))
-                case .unsupported:
-                    completionHandler(.failure(CentralError.unavailable))
-                default:
-                    return
+            if timeoutInterval != .infinity {
+                // Fires on `eventQueue`, so it can't interleave with the handler above
+                let timeoutToken = DispatchTimeout(after: timeoutInterval, on: eventQueue) {
+                    subscription.cancel()
+                    completionHandler(.failure(CentralManagerError.timedOut))
                 }
 
-                done()
-            })
+                timeout = timeoutToken
+                handle.add(CancelTimeout(timeoutToken))
+            }
+
+            handle.add(subscription)
         }
 
         return handle
     }
 
+    @available(*, deprecated, message: "Use wait(for: .poweredOn, completionHandler:) instead.")
+    @discardableResult
+    func waitUntilReady(completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+        wait(for: .poweredOn, completionHandler: completionHandler)
+    }
+
+    /// The outcome of arriving at `state` while waiting for `wanted`, or `nil` to keep waiting.
+    private static func result(reaching state: CBManagerState, whileWaitingFor wanted: CBManagerState) -> Result<Void, Error>? {
+        guard state != wanted else { return .success(Void()) }
+
+        switch state {
+        case .unauthorized:
+            return .failure(CentralManagerError.unauthorized)
+        case .unsupported:
+            return .failure(CentralManagerError.unavailable)
+        default:
+            return nil
+        }
+    }
+
     @discardableResult
     func connect(_ peripheral: Peripheral, timeout timeoutInterval: TimeInterval = .infinity, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -67,10 +103,10 @@ public extension CentralManager {
                     result = .success(peripheral)
                 case .disconnected(let disconnected, let error):
                     guard disconnected == peripheral else { return }
-                    result = .failure(error ?? CentralError.unknown)
+                    result = .failure(error ?? CentralManagerError.unknown)
                 case .failToConnect(let failed, let error):
                     guard failed == peripheral else { return }
-                    result = .failure(error ?? CentralError.unknown)
+                    result = .failure(error ?? CentralManagerError.unknown)
                 default:
                     return
                 }
@@ -140,6 +176,10 @@ public extension CentralManager {
     @discardableResult
     func cancelPeripheralConnection(_ peripheral: Peripheral, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }

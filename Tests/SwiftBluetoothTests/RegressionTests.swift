@@ -6,17 +6,16 @@ final class RegressionTests: CentralPeripheralTestCase {
     // State restoration can hand back a different CBPeripheral instance for a peripheral
     // we already track. Pointing at it without also becoming its delegate means no
     // callback ever arrives again, and every later operation hangs.
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testUpdatingUnderlyingPeripheralReattachesDelegate() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            let peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            let peripheral = try await central.scanForPeripherals().first!
             let original = peripheral.cbPeripheral
 
             // A second manager produces its own instance for the same identifier,
             // which is what restoration does
             let otherCentral = CentralManager()
-            try await otherCentral.waitUntilReady()
+            try await otherCentral.wait(for: .poweredOn)
             let restored = try XCTUnwrap(otherCentral.retrievePeripherals(withIdentifiers: [peripheral.identifier]).first).cbPeripheral
 
             XCTAssertFalse(restored === original, "Expected the other manager to make its own instance")
@@ -33,11 +32,10 @@ final class RegressionTests: CentralPeripheralTestCase {
 
     // A disconnection arriving for a peripheral we've been asked to forget used to build a
     // second wrapper for it, which took over delegate callbacks from the one still held
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDisconnectingAForgottenPeripheralLeavesItsDelegateAlone() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
 
             let cbPeripheral = peripheral.cbPeripheral
             let delegate = try XCTUnwrap(cbPeripheral.delegate)
@@ -54,11 +52,10 @@ final class RegressionTests: CentralPeripheralTestCase {
     }
 
     // This used to call the fire-and-forget overload, so the handler was never invoked
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDiscoverDescriptorsForStaticCharacteristicCallsCompletionHandler() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             for service in try await peripheral.discoverServices() {
@@ -75,11 +72,10 @@ final class RegressionTests: CentralPeripheralTestCase {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDiscoverDescriptorsForUnknownCharacteristicReportsError() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             // Never discovered, so it can't be mapped to a real characteristic
@@ -105,11 +101,10 @@ final class RegressionTests: CentralPeripheralTestCase {
 
     // The timeout and the connection event used to run on different queues, so both
     // could report a result for the same call
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testConnectTimeoutNeverRacesWithSuccess() async throws {
         try await withTimeout(20) { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
 
             // Sweep across the mock's connection latency to land on the race
             for timeout in stride(from: 0.0, through: 0.05, by: 0.005) {
@@ -143,11 +138,10 @@ final class RegressionTests: CentralPeripheralTestCase {
 
     // Turning the radio off invalidates everything without CoreBluetooth reporting
     // a disconnection, so pending work has to be failed explicitly
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testPoweringOffFinishesPendingWork() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             for service in try await peripheral.discoverServices() {
@@ -157,11 +151,17 @@ final class RegressionTests: CentralPeripheralTestCase {
             let characteristic = try XCTUnwrap(peripheral.characteristic(for: .firstChar))
             XCTAssertTrue(central.isConnected(peripheral))
 
-            let streamFinished = expectation(description: "value stream finished")
+            let streamFinished = expectation(description: "value stream reported the disconnection")
             let stream = peripheral.readValues(for: characteristic)
 
             Task {
-                for await _ in stream { }
+                do {
+                    for try await _ in stream { }
+                    XCTFail("Should report losing the peripheral rather than finishing quietly")
+                } catch {
+                    XCTAssertEqual((error as? CBError)?.code, .peripheralDisconnected)
+                }
+
                 streamFinished.fulfill()
             }
 
@@ -176,11 +176,10 @@ final class RegressionTests: CentralPeripheralTestCase {
 
     // These two had no disconnection handling at all, so losing the peripheral
     // mid-request left the caller waiting forever
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadRSSIFailsWhenPeripheralDisconnects() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             let failed = expectation(description: "readRSSI failed")
@@ -197,17 +196,16 @@ final class RegressionTests: CentralPeripheralTestCase {
             }
 
             // Delivered on the same queue as the request, so it always lands after registration
-            peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
+            peripheral.eventSubscriptions.receive(.didDisconnect(nil))
 
             await fulfillment(of: [failed], timeout: 5)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testDescriptorWriteFailsWhenPeripheralDisconnects() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             for service in try await peripheral.discoverServices() {
@@ -220,12 +218,17 @@ final class RegressionTests: CentralPeripheralTestCase {
 
             let failed = expectation(description: "descriptor write failed")
 
-            peripheral.writeValue(Data([0x01]), for: descriptor) { error in
+            peripheral.writeValue(Data([0x01]), for: descriptor) { result in
+                guard case .failure(let error) = result else {
+                    XCTFail("Expected the write to fail once the peripheral disconnected")
+                    return
+                }
+
                 XCTAssertEqual((error as? CBError)?.code, .peripheralDisconnected)
                 failed.fulfill()
             }
 
-            peripheral.eventSubscriptions.recieve(.didDisconnect(nil))
+            peripheral.eventSubscriptions.receive(.didDisconnect(nil))
 
             await fulfillment(of: [failed], timeout: 5)
         }
@@ -233,11 +236,10 @@ final class RegressionTests: CentralPeripheralTestCase {
 
     // Ending one stream used to decrement the notification count twice, turning
     // notifications off underneath any other stream on the same characteristic
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testEndingOneValueStreamLeavesOthersRunning() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             for service in try await peripheral.discoverServices() {
@@ -252,7 +254,7 @@ final class RegressionTests: CentralPeripheralTestCase {
             let survivor = peripheral.readValues(for: characteristic)
 
             let survivorTask = Task {
-                for await _ in survivor {
+                for try await _ in survivor {
                     survivorReceivedValue.fulfill()
                     break
                 }
@@ -260,7 +262,7 @@ final class RegressionTests: CentralPeripheralTestCase {
             }
 
             // Start a second stream and end it again
-            var shortLived: AsyncStream<Data>? = peripheral.readValues(for: characteristic)
+            var shortLived: AsyncThrowingStream<Data, Error>? = peripheral.readValues(for: characteristic)
             _ = shortLived
             shortLived = nil
 
@@ -276,11 +278,10 @@ final class RegressionTests: CentralPeripheralTestCase {
     }
 
     // A read that comes back without a value still has to be reported
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func testReadWithoutValueCompletesWithEmptyData() async throws {
         try await withTimeout { [self] in
-            try await central.waitUntilReady()
-            peripheral = await central.scanForPeripherals().first!
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
             try await central.connect(peripheral, timeout: connectionTimeout)
 
             for service in try await peripheral.discoverServices() {
@@ -311,6 +312,108 @@ final class RegressionTests: CentralPeripheralTestCase {
             }
 
             await fulfillment(of: [completed], timeout: 5)
+        }
+    }
+
+    // Scanning ends for several reasons and they don't mean the same thing: asking it to
+    // stop is routine, losing the radio is a failure the caller needs to hear about
+    func testScanFinishesQuietlyWhenStoppedAndThrowsWhenRadioIsLost() async throws {
+        try await withTimeout { [self] in
+            try await central.wait(for: .poweredOn)
+
+            let stoppedScan = await central.scanForPeripherals()
+            let stopped = expectation(description: "stopped scan finished without error")
+
+            Task {
+                do {
+                    for try await _ in stoppedScan { }
+                } catch {
+                    XCTFail("Asking a scan to stop isn't a failure, got \(error)")
+                }
+
+                stopped.fulfill()
+            }
+
+            try await Task.sleep(nanoseconds: 100_000_000)
+            central.stopScan()
+            await fulfillment(of: [stopped], timeout: 5)
+
+            let interruptedScan = await central.scanForPeripherals()
+            let interrupted = expectation(description: "interrupted scan reported the failure")
+
+            Task {
+                do {
+                    for try await _ in interruptedScan { }
+                    XCTFail("Losing the radio should be reported rather than finishing quietly")
+                } catch {
+                    XCTAssertEqual((error as? CBError)?.code, .peripheralDisconnected)
+                }
+
+                interrupted.fulfill()
+            }
+
+            try await Task.sleep(nanoseconds: 100_000_000)
+            CBMCentralManagerMock.simulatePowerOff()
+            await fulfillment(of: [interrupted], timeout: 5)
+        }
+    }
+
+    // Waiting was hardcoded to powered-on, so waiting for anything else was impossible
+    // and a powered-off manager waited forever with no way out
+    func testWaitingForAnyState() async throws {
+        CBMCentralManagerMock.simulateInitialState(.poweredOff)
+        central = CentralManager()
+
+        try await withTimeout { [self] in
+            // The state we're already in
+            try await central.wait(for: .poweredOff)
+
+            let poweredOn = Task { try await central.wait(for: .poweredOn) }
+            try await Task.sleep(nanoseconds: 100_000_000)
+            CBMCentralManagerMock.simulatePowerOn()
+            _ = try await poweredOn.value
+
+            // And back again, which the old API had no way to express
+            let poweredOff = Task { try await central.wait(for: .poweredOff) }
+            try await Task.sleep(nanoseconds: 100_000_000)
+            CBMCentralManagerMock.simulatePowerOff()
+            _ = try await poweredOff.value
+
+            XCTAssertEqual(central.state, .poweredOff)
+        }
+    }
+
+    func testWaitingForAStateThatNeverArrivesTimesOut() async throws {
+        CBMCentralManagerMock.simulateInitialState(.poweredOff)
+        central = CentralManager()
+
+        try await withTimeout { [self] in
+            do {
+                try await central.wait(for: .poweredOn, timeout: 0.2)
+                XCTFail("Should give up rather than waiting for a radio that never comes back")
+            } catch {
+                XCTAssertEqual(error as? CentralManagerError, .timedOut)
+            }
+        }
+    }
+
+    // The last of the crash-on-error signatures: it can report through the stream instead
+    func testReadValuesForUnknownCharacteristicReportsError() async throws {
+        try await withTimeout { [self] in
+            try await central.wait(for: .poweredOn)
+            peripheral = try await central.scanForPeripherals().first!
+            try await central.connect(peripheral, timeout: connectionTimeout)
+
+            do {
+                // Never discovered, so it can't be mapped to a real characteristic
+                for try await _ in peripheral.readValues(for: .unknownChar) {
+                    XCTFail("Should not deliver values for an undiscovered characteristic")
+                }
+
+                XCTFail("Should report the undiscovered characteristic")
+            } catch {
+                XCTAssertEqual(error as? PeripheralError, .characteristicNotFound)
+            }
         }
     }
 }

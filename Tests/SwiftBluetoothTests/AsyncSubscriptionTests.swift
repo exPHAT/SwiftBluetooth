@@ -49,7 +49,7 @@ final class AsyncSubscriptionQueueTests: XCTestCase {
         subscriptions.queue { value, _ in received.mutate { $0.append(value) } }
         subscriptions.queue { value, _ in received.mutate { $0.append(value) } }
 
-        subscriptions.recieve(1)
+        subscriptions.receive(1)
         queue.sync { }
 
         XCTAssertEqual(received.value, [1, 1])
@@ -62,7 +62,7 @@ final class AsyncSubscriptionQueueTests: XCTestCase {
         subscriptions.queue { value, _ in received.mutate { $0.append(value) } }
 
         for value in 0..<100 {
-            subscriptions.recieve(value)
+            subscriptions.receive(value)
         }
         queue.sync { }
 
@@ -78,8 +78,8 @@ final class AsyncSubscriptionQueueTests: XCTestCase {
             done()
         }
 
-        subscriptions.recieve(1)
-        subscriptions.recieve(2)
+        subscriptions.receive(1)
+        subscriptions.receive(2)
         queue.sync { }
 
         XCTAssertEqual(received.value, [1])
@@ -100,7 +100,7 @@ final class AsyncSubscriptionQueueTests: XCTestCase {
             second.cancel()
         }
 
-        subscriptions.recieve(1)
+        subscriptions.receive(1)
         queue.sync { }
 
         XCTAssertEqual(received.value, ["third", "first"])
@@ -115,7 +115,7 @@ final class AsyncSubscriptionQueueTests: XCTestCase {
             subscriptions.queue { _, _ in received.mutate { $0 += 1 } }
         }
 
-        subscriptions.recieve(1)
+        subscriptions.receive(1)
         queue.sync { }
 
         XCTAssertEqual(received.value, count)
@@ -136,7 +136,7 @@ final class AsyncSubscriptionQueueMapTests: XCTestCase {
         subscriptions.queue(key: "a") { value, _ in received.mutate { $0["a"] = value } }
         subscriptions.queue(key: "b") { value, _ in received.mutate { $0["b"] = value } }
 
-        subscriptions.recieve(key: "a", withValue: 1)
+        subscriptions.receive(key: "a", withValue: 1)
         queue.sync { }
 
         XCTAssertEqual(received.value, ["a": 1])
@@ -166,7 +166,7 @@ final class AsyncSubscriptionQueueMapTests: XCTestCase {
                 subscriptions.queue(key: "shared") { _, _ in received.mutate { $0 += 1 } }
             }
 
-            subscriptions.recieve(key: "shared", withValue: 1)
+            subscriptions.receive(key: "shared", withValue: 1)
             queue.sync { }
 
             XCTAssertEqual(received.value, count)

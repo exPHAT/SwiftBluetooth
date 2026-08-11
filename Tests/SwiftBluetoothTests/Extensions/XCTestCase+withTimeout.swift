@@ -6,7 +6,6 @@ struct TimedOutError: Error {
 }
 
 extension XCTestCase {
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func withTimeout<T>(
         _ seconds: TimeInterval = 5,
         asyncOperation: @escaping () async throws -> T,

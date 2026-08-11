@@ -5,6 +5,10 @@ public extension Peripheral {
     @discardableResult
     func readValue(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Data, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -53,6 +57,10 @@ public extension Peripheral {
     @discardableResult
     func readValue(for descriptor: CBDescriptor, completionHandler: @escaping (Result<Any?, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -134,14 +142,18 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping (Error?) -> Void) -> CancellableTask {
+    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
 
             guard state == .connected else {
-                completionHandler(CBError(.peripheralDisconnected))
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
                 return
             }
 
@@ -150,7 +162,7 @@ public extension Peripheral {
                 var task2: AsyncSubscription<PeripheralEvent>?
 
                 task1 = writeMap.queue(key: characteristic.uuid) { error, done in
-                    completionHandler(error)
+                    completionHandler(error.map { .failure($0) } ?? .success(()))
                     task2?.cancel()
                     done()
                 }
@@ -158,7 +170,7 @@ public extension Peripheral {
                 task2 = eventSubscriptions.queue { event, done in
                     guard case .didDisconnect(let error) = event else { return }
 
-                    completionHandler(error ?? CBError(.peripheralDisconnected))
+                    completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
                     task1?.cancel()
                     done()
                 }
@@ -170,7 +182,7 @@ public extension Peripheral {
             writeValue(data, for: characteristic, type: type)
 
             if type == .withoutResponse {
-                completionHandler(nil)
+                completionHandler(.success(()))
             }
         }
 
@@ -178,14 +190,18 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping (Error?) -> Void) -> CancellableTask {
+    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
 
             guard state == .connected else {
-                completionHandler(CBError(.peripheralDisconnected))
+                completionHandler(.failure(CBError(.peripheralDisconnected)))
                 return
             }
 
@@ -193,7 +209,7 @@ public extension Peripheral {
             var task2: AsyncSubscription<PeripheralEvent>?
 
             task1 = writeMap.queue(key: descriptor.uuid) { error, done in
-                completionHandler(error)
+                completionHandler(error.map { .failure($0) } ?? .success(()))
                 task2?.cancel()
                 done()
             }
@@ -201,7 +217,7 @@ public extension Peripheral {
             task2 = eventSubscriptions.queue { event, done in
                 guard case .didDisconnect(let error) = event else { return }
 
-                completionHandler(error ?? CBError(.peripheralDisconnected))
+                completionHandler(.failure(error ?? CBError(.peripheralDisconnected)))
                 task1?.cancel()
                 done()
             }
@@ -218,6 +234,10 @@ public extension Peripheral {
     @discardableResult
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping (Result<[CBService], Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -254,6 +274,10 @@ public extension Peripheral {
     @discardableResult
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -291,6 +315,10 @@ public extension Peripheral {
     @discardableResult
     func discoverDescriptors(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -340,9 +368,18 @@ public extension Peripheral {
         return discoverDescriptors(for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
+    /// Turns notifications for a characteristic on or off.
+    ///
+    /// Whether the characteristic ends up notifying is readable from `characteristic.isNotifying`.
+    /// It can differ from what was asked for, since a value stream started by ``readValues(for:)``
+    /// keeps notifications on until it ends.
     @discardableResult
-    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) -> CancellableTask {
+    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -355,7 +392,7 @@ public extension Peripheral {
             }
 
             guard characteristic.isNotifying != shouldNotify else {
-                completionHandler(.success(value))
+                completionHandler(.success(()))
                 return
             }
 
@@ -375,7 +412,7 @@ public extension Peripheral {
                     return
                 }
 
-                completionHandler(.success(characteristic.isNotifying))
+                completionHandler(.success(()))
             })
 
             cbPeripheral.setNotifyValue(shouldNotify, for: characteristic)
@@ -384,15 +421,16 @@ public extension Peripheral {
         return handle
     }
 
-    func setNotifyValue(_ value: Bool, for characteristic: Characteristic) {
-        // This signature can't report the error, so an undiscovered characteristic stays fatal here
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+    func setNotifyValue(_ value: Bool, for characteristic: Characteristic) throws {
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            throw PeripheralError.characteristicNotFound
+        }
 
         setNotifyValue(value, for: mappedCharacteristic)
     }
 
     @discardableResult
-    func setNotifyValue(_ value: Bool, for characteristic: Characteristic, completionHandler: @escaping (Result<Bool, Error>) -> Void) -> CancellableTask {
+    func setNotifyValue(_ value: Bool, for characteristic: Characteristic, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
             completionHandler(.failure(PeripheralError.characteristicNotFound))
             return DeferredCancellableTask()
@@ -401,9 +439,10 @@ public extension Peripheral {
         return setNotifyValue(value, for: mappedCharacteristic, completionHandler: completionHandler)
     }
 
-    func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) {
-        // This signature can't report the error, so an undiscovered characteristic stays fatal here
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+    func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) throws {
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            throw PeripheralError.characteristicNotFound
+        }
 
         writeValue(data, for: mappedCharacteristic, type: type)
     }
@@ -411,6 +450,10 @@ public extension Peripheral {
     @discardableResult
     func readRSSI(completionHandler: @escaping (Result<NSNumber, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
@@ -444,10 +487,13 @@ public extension Peripheral {
     }
 
     #if !os(macOS)
-    @available(iOS 11.0, tvOS 11.0, watchOS 4.0, *)
     @discardableResult
     func openL2CAPChannel(_ PSM: CBL2CAPPSM, completionHandler: @escaping (Result<CBL2CAPChannel, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
+        let completionHandler = SingleUseHandler(completionHandler)
+
+        // Reported whether cancellation lands before or after the work is registered
+        handle.reportCancellation { completionHandler(.failure(CancellationError())) }
 
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }

@@ -2,7 +2,7 @@ import Foundation
 import CoreBluetooth
 
 @dynamicMemberLookup
-public class Peripheral: NSObject {
+public final class Peripheral: NSObject {
     // Guards every mutable property below it. Never held while calling out to
     // CoreBluetooth, the delegate, or subscriber code.
     private let stateLock = NSLock()
@@ -85,7 +85,7 @@ public class Peripheral: NSObject {
     }
 
     // MARK: - Initializers
-    public init(_ cbPeripheral: CBPeripheral) {
+    internal init(_ cbPeripheral: CBPeripheral) {
         let queue = DispatchQueue(label: "peripheral-event-queue")
 
         self.eventQueue = queue
@@ -198,7 +198,6 @@ public extension Peripheral {
     }
 
     #if !os(macOS)
-    @available(iOS 11.0, tvOS 11.0, watchOS 4.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM) {
         cbPeripheral.openL2CAPChannel(PSM)
     }
@@ -208,5 +207,4 @@ public extension Peripheral {
 // All of this type's mutable state is guarded by its own lock, and the underlying
 // `CBPeripheral` is safe to use from any thread, so instances can cross isolation
 // boundaries. Unchecked because the compiler can't verify hand-rolled locking.
-@available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
 extension Peripheral: @unchecked Sendable { }

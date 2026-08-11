@@ -2,29 +2,29 @@ import Foundation
 import CoreBluetooth
 
 public extension Peripheral {
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValue(for characteristic: CBCharacteristic) async throws -> Data {
         try await withCancellableContinuation { completion in
             self.readValue(for: characteristic, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValue(for characteristic: Characteristic) async throws -> Data {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await readValue(for: mappedCharacteristic)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readValue(for descriptor: CBDescriptor) async throws -> Any? {
         try await withCancellableContinuation { completion in
             self.readValue(for: descriptor, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func readValues(for characteristic: CBCharacteristic) -> AsyncStream<Data> {
+    /// Subscribes to a characteristic, yielding each value the peripheral sends.
+    ///
+    /// The stream finishes normally when notifications are turned off, and throws if the
+    /// peripheral disconnects or reports an error while it's subscribed.
+    func readValues(for characteristic: CBCharacteristic) -> AsyncThrowingStream<Data, Error> {
         .init { cont in
             var task1: AsyncSubscription<Result<Data, Error>>?
             var task2: AsyncSubscription<PeripheralEvent>?
@@ -38,8 +38,8 @@ public extension Peripheral {
                 switch result {
                 case .success(let data):
                     cont.yield(data)
-                case .failure:
-                    cont.finish()
+                case .failure(let error):
+                    cont.finish(throwing: error)
                     task2?.cancel()
                     done()
                 }
@@ -54,8 +54,8 @@ public extension Peripheral {
             }
 
             task2 = eventSubscriptions.queue { event, done in
-                if case .didDisconnect = event {
-                    cont.finish()
+                if case .didDisconnect(let error) = event {
+                    cont.finish(throwing: error ?? CBError(.peripheralDisconnected))
                     task1?.cancel()
                     done()
                     return
@@ -65,7 +65,9 @@ public extension Peripheral {
                       foundCharacteristic.uuid == characteristic.uuid,
                       (!foundCharacteristic.isNotifying || error != nil) else { return }
 
-                cont.finish()
+                // Notifications being turned off is how this stream is meant to end;
+                // anything else stopping them is a failure
+                cont.finish(throwing: error)
                 task1?.cancel()
                 done()
             }
@@ -80,91 +82,81 @@ public extension Peripheral {
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    func readValues(for characteristic: Characteristic) -> AsyncStream<Data> {
-        // This signature can't report the error, so an undiscovered characteristic stays fatal here
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { fatalError("Characteristic \(characteristic.uuid) not found.") }
+    func readValues(for characteristic: Characteristic) -> AsyncThrowingStream<Data, Error> {
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            // Reported through the stream rather than by throwing here, so callers have
+            // a single place to handle failures
+            return .init { $0.finish(throwing: PeripheralError.characteristicNotFound) }
+        }
 
         return readValues(for: mappedCharacteristic)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType) async throws {
-        try await withCancellableContinuation { (completion: @escaping (Result<Void, Error>) -> Void) in
-            self.writeValue(data, for: characteristic, type: type) { error in
-                completion(error.map { .failure($0) } ?? .success(()))
-            }
+        try await withCancellableContinuation { completion in
+            self.writeValue(data, for: characteristic, type: type, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func writeValue(_ data: Data, for descriptor: CBDescriptor) async throws {
-        try await withCancellableContinuation { (completion: @escaping (Result<Void, Error>) -> Void) in
-            self.writeValue(data, for: descriptor) { error in
-                completion(error.map { .failure($0) } ?? .success(()))
-            }
+        try await withCancellableContinuation { completion in
+            self.writeValue(data, for: descriptor, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) async throws {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await writeValue(data, for: mappedCharacteristic, type: type)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverServices(_ serviceUUIDs: [CBUUID]? = nil) async throws -> [CBService] {
         try await withCancellableContinuation { completion in
             self.discoverServices(serviceUUIDs, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async throws -> [CBCharacteristic] {
         try await withCancellableContinuation { completion in
             self.discoverCharacteristics(characteristicUUIDs, for: service, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService) async throws -> [CBCharacteristic] {
         try await withCancellableContinuation { completion in
             self.discoverCharacteristics(characteristics, for: service, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverDescriptors(for characteristic: CBCharacteristic) async throws -> [CBDescriptor] {
         try await withCancellableContinuation { completion in
             self.discoverDescriptors(for: characteristic, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func discoverDescriptors(for characteristic: Characteristic) async throws -> [CBDescriptor] {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await discoverDescriptors(for: mappedCharacteristic)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    @discardableResult
-    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) async throws -> Bool {
+    /// Turns notifications for a characteristic on or off.
+    ///
+    /// Whether the characteristic ends up notifying is readable from `characteristic.isNotifying`.
+    /// It can differ from what was asked for, since a value stream started by ``readValues(for:)``
+    /// keeps notifications on until it ends.
+    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic) async throws {
         try await withCancellableContinuation { completion in
             self.setNotifyValue(value, for: characteristic, completionHandler: completion)
         }
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
-    @discardableResult
-    func setNotifyValue(_ value: Bool, for characteristic: Characteristic) async throws -> Bool {
+    func setNotifyValue(_ value: Bool, for characteristic: Characteristic) async throws {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
 
         return try await setNotifyValue(value, for: mappedCharacteristic)
     }
 
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func readRSSI() async throws -> NSNumber {
         try await withCancellableContinuation { completion in
             self.readRSSI(completionHandler: completion)
@@ -172,7 +164,6 @@ public extension Peripheral {
     }
 
     #if !os(macOS)
-    @available(iOS 13, macOS 10.15, watchOS 6.0, tvOS 13.0, *)
     func openL2CAPChannel(_ PSM: CBL2CAPPSM) async throws -> CBL2CAPChannel {
         try await withCancellableContinuation { completion in
             self.openL2CAPChannel(PSM, completionHandler: completion)
