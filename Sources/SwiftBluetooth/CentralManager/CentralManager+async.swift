@@ -29,7 +29,9 @@ public extension CentralManager {
     ///
     /// Throws `CBError.connectionTimeout` if `timeout` elapses first. Cancelling the surrounding
     /// task also cancels the pending connection, so a connection can't land after you've stopped
-    /// waiting for it.
+    /// waiting for it — which means this can't arm a request that outlives the task, the app
+    /// being suspended, or the app being terminated. Use ``connectPersistently(_:options:)``
+    /// for that.
     func connect(_ peripheral: Peripheral, timeout: TimeInterval = .infinity, options: [String: Any]? = nil) async throws -> Peripheral {
         try await withCancellableContinuation {
             // Cancelling only stops us waiting, so the pending connection is torn down too

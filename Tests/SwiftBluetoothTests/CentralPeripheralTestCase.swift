@@ -109,13 +109,40 @@ class CentralPeripheralTestCase: XCTestCase {
         }
     }
 
+    /// The restore identifiers `simulateStateRestoration` has been asked about.
+    private(set) var restorationRequests: [String] = []
+
+    func noteRestorationRequest(_ key: String) {
+        restorationRequests.append(key)
+    }
+
     override func setUp() {
+        restorationRequests = []
         mockPeripheral.connectionDelegate?.reset()
         CBMCentralManagerMock.simulateAuthorization(.allowedAlways)
         CBMCentralManagerMock.simulateInitialState(.poweredOn)
         CBMCentralManagerMock.simulatePeripherals([mockPeripheral])
         mockPeripheral.simulateProximityChange(.near)
         central = CentralManager()
+    }
+
+    /// Builds a manager CoreBluetoothMock hands `state` to during construction, the way iOS
+    /// does when it relaunches an app to restore one.
+    ///
+    /// The state dictionary uses the `CBMCentralManagerRestoredState…` keys; peripherals must
+    /// be `CBMPeripheralMock` instances from a previous manager, handed over directly — a
+    /// fresh copy always starts `.disconnected`, so the connected/connecting instance itself
+    /// is what carries the state across.
+    func restoredCentral(identifier: String = "test-restore",
+                         state: [String: Any],
+                         delegate: CentralManagerDelegate? = nil) -> CentralManager {
+        CBMCentralManagerMock.simulateStateRestoration = { [weak self] key in
+            // Called synchronously from the manager's init, on the constructing thread
+            self?.restorationRequests.append(key)
+            return key == identifier ? state : nil
+        }
+
+        return CentralManager(delegate: delegate, restoreIdentifier: identifier)
     }
 
     /// Runs out anything still in flight across the queues callbacks travel through.
@@ -173,6 +200,8 @@ class CentralPeripheralTestCase: XCTestCase {
         DispatchQueue.main.sync { }
         XCTAssertTrue(centralRef.isReleased, "CentralManager is being retained")
 
+        // A global — leaking it across tests would restore state into unrelated managers
+        CBMCentralManagerMock.simulateStateRestoration = nil
         CBMCentralManagerMock.tearDownSimulation()
     }
 }

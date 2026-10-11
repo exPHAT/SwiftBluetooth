@@ -6,6 +6,17 @@ internal final class NotifyingTracker<Key>: @unchecked Sendable where Key: Hasha
 
     let lock = NSLock()
 
+    /// Whether the last externally-set notification state for a key was on.
+    ///
+    /// External state is also seeded when a peripheral arrives with notifications a
+    /// previous launch enabled, so this is how tests observe that adoption.
+    func isExternallyNotifying(forKey key: Key) -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+
+        return external[key] ?? false
+    }
+
     func setExternal(_ value: Bool, forKey key: Key) -> Bool {
         lock.lock()
         defer { lock.unlock() }

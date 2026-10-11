@@ -78,6 +78,15 @@ public extension CentralManager {
         }
     }
 
+    /// Connects to a peripheral, reporting the outcome to `completionHandler`.
+    ///
+    /// With the default infinite timeout the request stays with CoreBluetooth until it
+    /// produces an outcome. Cancelling the returned task only stops the completion handler
+    /// from being called — the pending request itself is left in place, making this the
+    /// completion-handler form of ``connectPersistently(_:options:)``. The `async` form
+    /// behaves differently: cancelling its task tears the pending request down, because a
+    /// call that has thrown `CancellationError` must not be followed by a connection nobody
+    /// is waiting for.
     @discardableResult
     func connect(_ peripheral: Peripheral, timeout timeoutInterval: TimeInterval = .infinity, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) -> CancellableTask {
         let handle = DeferredCancellableTask()
@@ -186,7 +195,20 @@ public extension CentralManager {
         eventQueue.async { [self] in
             guard !handle.isCancelled else { return }
 
-            guard isConnected(peripheral) else {
+            // A restored or retrieved peripheral can be connected without this manager ever
+            // seeing a `didConnect`, so the peripheral's own state decides whether a
+            // disconnection is coming. When neither side thinks it's connected, ask
+            // CoreBluetooth anyway: cancelling is also how a pending connection request is
+            // torn down, and nothing is reported back for that.
+            guard peripheral.state == .connected || isConnected(peripheral) else {
+                cancelPeripheralConnection(peripheral)
+
+                // Tearing down a pending request reports nothing, so anything waiting on
+                // this peripheral's connection has to be finished off here — otherwise an
+                // in-flight `connect` with the default infinite timeout waits forever on
+                // an event CoreBluetooth will never send.
+                eventSubscriptions.receive(.disconnected(peripheral, CBError(.peripheralDisconnected)))
+
                 completionHandler(.success(Void()))
                 return
             }

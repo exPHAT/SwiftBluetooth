@@ -96,12 +96,43 @@ which is the truth either way.
 
 All four old names still compile, deprecated.
 
+## Background operation and state restoration
+
+2.0 makes CoreBluetooth state restoration a first-class citizen:
+
+- `CentralManager.init` gained a `restoreIdentifier:` parameter, and the new
+  `centralManager(_:willRestore:)` delegate method delivers a typed
+  `CentralManagerRestoredState` (restored peripherals as `Peripheral`, plus the restored
+  scan's services and options). The raw `willRestoreState dict:` mirror is still called,
+  straight after the typed one.
+- Restoration is delivered *during construction*, so only a delegate passed to `init`
+  receives it. `CentralManager.restoredState` keeps the same value readable for the
+  manager's whole life.
+- Restored and retrieved peripherals that are already connected are tracked as connected,
+  even though CoreBluetooth delivers no `didConnect` for them; `connectedPeripherals` is
+  now public, and the new `peripheral(withIdentifier:)` looks a tracked peripheral up
+  without asking CoreBluetooth (it works before `.poweredOn`, which restoration precedes).
+- The new `connectPersistently(_:options:)` places a connection request that outlives the
+  call, the app being suspended, and — with a restore identifier — the app being
+  terminated. The `async` `connect` still tears its request down on task cancellation;
+  the completion-handler form with the default infinite timeout leaves it in place.
+
+See the DocC article *Background Operation* for the full contract.
+
 ## Smaller things
 
 - `Peripheral.init(_ cbPeripheral:)` is internal. Constructing one made it the delegate of
   that `CBPeripheral`, quietly taking callbacks away from the instance the manager holds.
   Get peripherals from the manager — by scanning, `retrievePeripherals(withIdentifiers:)`,
   or `retrieveConnectedPeripherals(withServices:)`.
+- `cancelPeripheralConnection(_:completionHandler:)` and its `async` form now judge whether
+  a disconnection is coming by the peripheral's own state, so they work on a
+  restored-but-connected peripheral — and when nothing is connected they still pass the
+  cancel through to CoreBluetooth, which is how a pending connection request is torn down.
+- `Peripheral` seeds its known characteristics from what the underlying `CBPeripheral` has
+  already discovered, so `Characteristic`-typed calls work on restored peripherals without
+  re-running discovery — and notifications a previous launch enabled are adopted as
+  external subscriptions rather than being switched off by the first value stream to end.
 - `CentralManager` and `Peripheral` are `final`.
 - Writes without response wait until the peripheral can accept one. CoreBluetooth discards
   them when its buffer is full, so they used to go missing with nothing reported.

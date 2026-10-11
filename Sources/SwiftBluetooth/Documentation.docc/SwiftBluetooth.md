@@ -47,7 +47,8 @@ reason you didn't ask for, and finish normally when you did.
 Delegate callbacks arrive on the queue the ``CentralManager`` was created with — the main
 queue unless you passed one — exactly as CoreBluetooth delivers them. Completion handlers and
 stream values arrive on an internal serial queue instead, so don't assume they're on the main
-thread when updating UI.
+thread when updating UI. State restoration is the exception: it's delivered during the
+manager's construction, on whichever thread is constructing it.
 
 ## Topics
 
@@ -56,6 +57,12 @@ thread when updating UI.
 - ``CentralManager``
 - ``CentralManagerDelegate``
 - ``CentralManagerError``
+
+### Background operation
+
+- <doc:BackgroundOperation>
+- ``CentralManagerRestoredState``
+- ``CentralManager/connectPersistently(_:options:)``
 
 ### Peripherals
 

@@ -68,7 +68,9 @@ public final class Peripheral: NSObject {
     ///
     /// This is `nil` until the peripheral has been discovered by a scan. Peripherals obtained
     /// from `retrievePeripherals(withIdentifiers:)`, `retrieveConnectedPeripherals(withServices:)`
-    /// or state restoration have never been advertised to us, so they have no discovery info.
+    /// or state restoration have never been advertised to us, so they have no discovery info —
+    /// identify one of those by ``identifier``, or by ``services``, which CoreBluetooth
+    /// repopulates for a peripheral it restores.
     public var discoveryInfo: DiscoveryInfo? {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -90,6 +92,7 @@ public final class Peripheral: NSObject {
     // MARK: - Initializers
     internal init(_ cbPeripheral: CBPeripheral) {
         let queue = DispatchQueue(label: "peripheral-event-queue")
+        let known = Self.discoveredCharacteristics(of: cbPeripheral)
 
         self.eventQueue = queue
         self.responseMap = .init(queue)
@@ -98,9 +101,42 @@ public final class Peripheral: NSObject {
         self.descriptorMap = .init(queue)
         self.eventSubscriptions = .init(queue)
         self._cbPeripheral = cbPeripheral
+        self._knownCharacteristics = known
         super.init()
 
+        adoptExistingNotifications(known)
         cbPeripheral.delegate = wrappedDelegate
+    }
+
+    /// The characteristics a `CBPeripheral` has already discovered.
+    ///
+    /// Populated for a peripheral handed back by state restoration or retrieval, where
+    /// discovery ran in a previous launch. Characteristics belong to the instance that
+    /// discovered them, so this always reads from the instance being taken on.
+    private static func discoveredCharacteristics(of cbPeripheral: CBPeripheral) -> [CBUUID: CBCharacteristic] {
+        var known: [CBUUID: CBCharacteristic] = [:]
+
+        for service in cbPeripheral.services ?? [] {
+            for characteristic in service.characteristics ?? [] {
+                known[characteristic.uuid] = characteristic
+            }
+        }
+
+        return known
+    }
+
+    /// Takes on notifications that are already on for characteristics this process never
+    /// subscribed to.
+    ///
+    /// CoreBluetooth keeps subscriptions alive across state restoration, so a characteristic
+    /// can arrive already notifying in a launch that never asked for it. Recorded as an
+    /// external subscription — which is what it is, from this process's point of view — so
+    /// the first value stream to end doesn't switch off something a previous launch
+    /// turned on.
+    private func adoptExistingNotifications(_ characteristics: [CBUUID: CBCharacteristic]) {
+        for (uuid, characteristic) in characteristics where characteristic.isNotifying {
+            _ = notifyingState.setExternal(true, forKey: uuid)
+        }
     }
 
     // MARK: - Internal
@@ -130,20 +166,20 @@ public final class Peripheral: NSObject {
     /// Points this wrapper at a new underlying `CBPeripheral`, which state restoration
     /// can hand back in place of the instance we were originally created with.
     internal func updateCBPeripheral(_ cbPeripheral: CBPeripheral) {
-        stateLock.lock()
-        let previous = _cbPeripheral
-        _cbPeripheral = cbPeripheral
-
         // Characteristics belong to the peripheral that discovered them, so passing the old
         // instance's objects to the new one is API misuse. Reuse whatever the new instance
         // has already discovered and drop the rest.
-        _knownCharacteristics = [:]
-        for service in cbPeripheral.services ?? [] {
-            for characteristic in service.characteristics ?? [] {
-                _knownCharacteristics[characteristic.uuid] = characteristic
-            }
-        }
+        let known = Self.discoveredCharacteristics(of: cbPeripheral)
+
+        stateLock.lock()
+        let previous = _cbPeripheral
+        _cbPeripheral = cbPeripheral
+        _knownCharacteristics = known
         stateLock.unlock()
+
+        // Only ever adds, so streams already running keep their own counts. Outside the
+        // locked region because the tracker takes its own lock.
+        adoptExistingNotifications(known)
 
         guard previous !== cbPeripheral else { return }
 

@@ -107,6 +107,27 @@ task.cancel()
 > **Note**
 Only one scan can run at a time. Calling `central.stopScan()`, or starting another scan, will cancel any peripheral scanning tasks and finish any scanning streams.
 
+#### Background reconnection
+
+Opt in to state restoration and place a persistent connect, and iOS will relaunch your app in the background when the peripheral comes back — even after termination. Requires the `bluetooth-central` background mode in your Info.plist.
+
+```swift
+// The same identifier on every launch, on a manager built eagerly at app launch
+let central = CentralManager(delegate: self, restoreIdentifier: "my-app-central")
+
+// A request with no timeout that survives suspension and termination
+central.connectPersistently(peripheral)
+
+// What the previous launch was doing arrives before anything else
+func centralManager(_ central: CentralManager, willRestore state: CentralManagerRestoredState) {
+  for peripheral in state.peripherals {
+    print("Restored:", peripheral.name ?? "Unknown", peripheral.state == .connected ? "(still connected)" : "")
+  }
+}
+```
+> **Note**
+A restored peripheral may already be connected — no `didConnect` is delivered for those — and pending requests are discarded by radio power-cycles, connection failures and disconnections, so re-arm them from `centralManagerDidUpdateState`. See the DocC article *Background Operation* for the full contract.
+
 #### Migrate existing projects
 
 Existing projects that already use `CoreBluetooth` can immediately get started by typealiasing the stock types. Afterwards, you can adopt async API's at your own pace.

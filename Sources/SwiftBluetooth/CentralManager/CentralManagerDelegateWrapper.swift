@@ -2,10 +2,34 @@ import Foundation
 @preconcurrency import CoreBluetooth
 
 internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDelegate {
-    private weak var parent: CentralManager?
+    private let lock = NSLock()
+    private weak var _parent: CentralManager?
 
-    init(parent: CentralManager) {
-        self.parent = parent
+    // CoreBluetooth delivers `willRestoreState` while the manager that owns this wrapper is
+    // still being built — CoreBluetoothMock does it synchronously inside `CBCentralManager.init`.
+    // It's the one callback that can't be missed, so it waits here until there's a parent to
+    // give it to.
+    private var pendingRestoredState: [String: Any]?
+
+    private var parent: CentralManager? {
+        lock.lock()
+        defer { lock.unlock() }
+
+        return _parent
+    }
+
+    /// Wires this wrapper to the manager that owns it, delivering anything that arrived
+    /// during construction.
+    internal func attach(to parent: CentralManager) {
+        lock.lock()
+        _parent = parent
+        let pending = pendingRestoredState
+        pendingRestoredState = nil
+        lock.unlock()
+
+        if let pending = pending {
+            deliverRestoredState(pending, to: parent)
+        }
     }
 
     // MARK: - CBCentralManagerDelegate conformance
@@ -89,20 +113,39 @@ internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDe
     }
 
     func centralManager(_ central: CBCentralManager, willRestoreState dict: [String: Any]) {
-        guard let parent = parent else { return }
-
-        if let peripherals = dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] {
-            for peripheral in peripherals {
-                let _ = parent.peripheral(peripheral) // Update underlying peripheral reference with newly restored references
-            }
+        lock.lock()
+        guard let parent = _parent else {
+            // Arrived while the manager is still being built; `attach(to:)` delivers it.
+            pendingRestoredState = dict
+            lock.unlock()
+            return
         }
+        lock.unlock()
 
+        deliverRestoredState(dict, to: parent)
+    }
+
+    private func deliverRestoredState(_ dict: [String: Any], to parent: CentralManager) {
+        // Registering each one repoints any wrapper we already hold at the instance the system
+        // just handed back, seeds its already-discovered characteristics, and picks up the ones
+        // that came back still connected — CoreBluetooth delivers no `didConnect` for those.
+        let peripherals = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] ?? [])
+            .map(parent.peripheral(_:))
+
+        let state = CentralManagerRestoredState(peripherals: peripherals,
+                                                scanServices: dict[CBCentralManagerRestoredStateScanServicesKey] as? [CBUUID],
+                                                scanOptions: dict[CBCentralManagerRestoredStateScanOptionsKey] as? [String: Any],
+                                                dictionary: dict)
+
+        // Stored before the delegate hears about it, so a delegate that reads
+        // `restoredState` from any later callback always sees the final value.
+        parent.storeRestoredState(state)
+
+        parent.delegate?.centralManager(parent, willRestore: state)
         parent.delegate?.centralManager(parent, willRestoreState: dict)
 
-        let transfer = UncheckedTransfer(dict)
-
         parent.eventQueue.async {
-            parent.eventSubscriptions.receive(.restoreState(transfer.value))
+            parent.eventSubscriptions.receive(.restoreState(state))
         }
     }
 
