@@ -5,6 +5,7 @@ public final class CentralManager: NSObject {
     internal let centralManager: CBCentralManager
 
     // Strongly held here because `CBCentralManager.delegate` is weak.
+    // swiftlint:disable:next weak_delegate
     private let wrappedDelegate: CentralManagerDelegateWrapper
 
     internal let eventQueue: DispatchQueue
@@ -99,7 +100,12 @@ public final class CentralManager: NSObject {
     ///   - queue: The queue delegate callbacks arrive on. The main queue by default.
     ///   - options: Passed to `CBCentralManager` unchanged. `restoreIdentifier` wins over
     ///     `CBCentralManagerOptionRestoreIdentifierKey` given here.
-    public init(delegate: CentralManagerDelegate? = nil, restoreIdentifier: String? = nil, queue: DispatchQueue? = nil, options: [String: Any]? = nil) {
+    public init(
+        delegate: CentralManagerDelegate? = nil,
+        restoreIdentifier: String? = nil,
+        queue: DispatchQueue? = nil,
+        options: [String: Any]? = nil
+    ) {
         let eventQueue = DispatchQueue(label: "centralmanager-event-queue")
 
         var resolvedOptions = options ?? [:]

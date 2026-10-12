@@ -31,9 +31,15 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
         parent.delegate?.peripheral(parent, didDiscoverCharacteristicsFor: service, error: error)
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didDiscoverDescriptorsFor characteristic: CBCharacteristic, error: Error?) {
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didDiscoverDescriptorsFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
         guard let parent = parent else { return }
-        parent.eventSubscriptions.receive(.discoveredDescriptors(characteristic, characteristic.descriptors ?? [], error))
+        parent.eventSubscriptions.receive(
+            .discoveredDescriptors(characteristic, characteristic.descriptors ?? [], error)
+        )
         parent.delegate?.peripheral(parent, didDiscoverDescriptorsFor: characteristic, error: error)
     }
 
@@ -77,7 +83,11 @@ internal final class PeripheralDelegateWrapper: NSObject, CBPeripheralDelegate {
         parent.delegate?.peripheral(parent, didWriteValueFor: descriptor, error: error)
     }
 
-    func peripheral(_ peripheral: CBPeripheral, didUpdateNotificationStateFor characteristic: CBCharacteristic, error: Error?) {
+    func peripheral(
+        _ peripheral: CBPeripheral,
+        didUpdateNotificationStateFor characteristic: CBCharacteristic,
+        error: Error?
+    ) {
         guard let parent = parent else { return }
         parent.eventSubscriptions.receive(.updateNotificationState(characteristic, error))
         parent.delegate?.peripheral(parent, didUpdateNotificationStateFor: characteristic, error: error)

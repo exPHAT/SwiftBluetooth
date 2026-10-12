@@ -19,7 +19,10 @@ internal final class AsyncSubscriptionQueue<Value>: @unchecked Sendable {
     }
 
     @discardableResult
-    func queue(block: @escaping (Value, () -> Void) -> Void, completion: (() -> Void)? = nil) -> AsyncSubscription<Value> {
+    func queue(
+        block: @escaping (Value, () -> Void) -> Void,
+        completion: (() -> Void)? = nil
+    ) -> AsyncSubscription<Value> {
         let item = AsyncSubscription(parent: self, block: block, completion: completion)
 
         lock.lock()

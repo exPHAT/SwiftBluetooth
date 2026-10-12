@@ -10,7 +10,7 @@ extension Peripheral {
         /// The advertisement packet the peripheral sent.
         public var advertisementData: AdvertisementData
 
-        init(rssi: NSNumber, advertisementData: [String : Any]) {
+        init(rssi: NSNumber, advertisementData: [String: Any]) {
             self.rssi = Int(truncating: rssi)
             self.advertisementData = .init(data: advertisementData)
         }
@@ -20,7 +20,7 @@ extension Peripheral {
         /// The named properties cover the keys CoreBluetooth documents. Anything else can be
         /// read by subscripting with a `CBAdvertisementData…` key.
         public struct AdvertisementData {
-            private(set) var data: [String : Any]
+            private(set) var data: [String: Any]
 
             /// Reads a value straight out of the advertisement by its CoreBluetooth key.
             public subscript(key: String) -> Any? {
@@ -36,8 +36,8 @@ extension Peripheral {
                 data[CBAdvertisementDataManufacturerDataKey] as? Data
             }
 
-            public var serviceData: [CBUUID : Data] {
-                data[CBAdvertisementDataServiceDataKey] as? [CBUUID : Data] ?? [:]
+            public var serviceData: [CBUUID: Data] {
+                data[CBAdvertisementDataServiceDataKey] as? [CBUUID: Data] ?? [:]
             }
 
             public var serviceUUIDs: [CBUUID] {

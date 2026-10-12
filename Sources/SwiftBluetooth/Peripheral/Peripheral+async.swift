@@ -11,7 +11,9 @@ public extension Peripheral {
 
     /// Reads the current value of a characteristic that's already been discovered.
     func readValue(for characteristic: Characteristic) async throws -> Data {
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            throw PeripheralError.characteristicNotFound
+        }
 
         return try await readValue(for: mappedCharacteristic)
     }
@@ -33,7 +35,7 @@ public extension Peripheral {
             // the stream, so they're cancelled as a pair
             let subscriptions = DeferredCancellableTask()
 
-            let values = responseMap.queue(key: characteristic.uuid) { result, done in
+            let values = responseMap.queue(key: characteristic.uuid) { result, _ in
                 switch result {
                 case .success(let data):
                     cont.yield(data)
@@ -53,7 +55,7 @@ public extension Peripheral {
 
             subscriptions.add(values)
 
-            subscriptions.add(eventSubscriptions.queue { event, done in
+            subscriptions.add(eventSubscriptions.queue { event, _ in
                 if case .didDisconnect(let error) = event {
                     cont.finish(throwing: error ?? CBError(.peripheralDisconnected))
                     subscriptions.cancel()
@@ -62,7 +64,7 @@ public extension Peripheral {
 
                 guard case .updateNotificationState(let foundCharacteristic, let error) = event,
                       foundCharacteristic.uuid == characteristic.uuid,
-                      (!foundCharacteristic.isNotifying || error != nil) else { return }
+                      !foundCharacteristic.isNotifying || error != nil else { return }
 
                 // Notifications being turned off is how this stream is meant to end;
                 // anything else stopping them is a failure
@@ -108,7 +110,9 @@ public extension Peripheral {
     }
 
     func writeValue(_ data: Data, for characteristic: Characteristic, type: CBCharacteristicWriteType) async throws {
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            throw PeripheralError.characteristicNotFound
+        }
 
         return try await writeValue(data, for: mappedCharacteristic, type: type)
     }
@@ -123,13 +127,19 @@ public extension Peripheral {
     /// Discovers characteristics of a service, or all of them when `characteristicUUIDs` is `nil`.
     ///
     /// A ``Characteristic`` can only be used once it's been discovered this way.
-    func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService) async throws -> [CBCharacteristic] {
+    func discoverCharacteristics(
+        _ characteristicUUIDs: [CBUUID]? = nil,
+        for service: CBService
+    ) async throws -> [CBCharacteristic] {
         try await withCancellableContinuation { completion in
             self.discoverCharacteristics(characteristicUUIDs, for: service, completionHandler: completion)
         }
     }
 
-    func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService) async throws -> [CBCharacteristic] {
+    func discoverCharacteristics(
+        _ characteristics: [Characteristic],
+        for service: CBService
+    ) async throws -> [CBCharacteristic] {
         try await withCancellableContinuation { completion in
             self.discoverCharacteristics(characteristics, for: service, completionHandler: completion)
         }
@@ -143,7 +153,9 @@ public extension Peripheral {
     }
 
     func discoverDescriptors(for characteristic: Characteristic) async throws -> [CBDescriptor] {
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            throw PeripheralError.characteristicNotFound
+        }
 
         return try await discoverDescriptors(for: mappedCharacteristic)
     }
@@ -160,7 +172,9 @@ public extension Peripheral {
     }
 
     func setNotifyValue(_ value: Bool, for characteristic: Characteristic) async throws {
-        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else { throw PeripheralError.characteristicNotFound }
+        guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
+            throw PeripheralError.characteristicNotFound
+        }
 
         return try await setNotifyValue(value, for: mappedCharacteristic)
     }

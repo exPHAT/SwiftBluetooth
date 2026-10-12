@@ -12,6 +12,7 @@ public final class Peripheral: NSObject {
 
     // Only ever touched from `init`, which runs on a single thread, so the
     // non-atomic `lazy` initialization can't be raced.
+    // swiftlint:disable:next weak_delegate
     private lazy var wrappedDelegate: PeripheralDelegateWrapper = .init(parent: self)
 
     internal let eventQueue: DispatchQueue
@@ -78,7 +79,10 @@ public final class Peripheral: NSObject {
         return _discovery
     }
 
-    @available(*, deprecated, renamed: "discoveryInfo", message: "Accessing this on a peripheral that was never discovered by a scan traps. Use `discoveryInfo` instead.")
+    @available(
+        *, deprecated, renamed: "discoveryInfo",
+        message: "Traps on a peripheral that was never discovered by a scan. Use `discoveryInfo` instead."
+    )
     public var discovery: DiscoveryInfo! { discoveryInfo }
 
     public subscript(dynamicMember member: KeyPath<Characteristic.Type, Characteristic>) -> CBCharacteristic? {

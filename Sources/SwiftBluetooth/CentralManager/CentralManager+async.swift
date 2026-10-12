@@ -32,7 +32,11 @@ public extension CentralManager {
     /// waiting for it — which means this can't arm a request that outlives the task, the app
     /// being suspended, or the app being terminated. Use ``connectPersistently(_:options:)``
     /// for that.
-    func connect(_ peripheral: Peripheral, timeout: TimeInterval = .infinity, options: [String: Any]? = nil) async throws -> Peripheral {
+    func connect(
+        _ peripheral: Peripheral,
+        timeout: TimeInterval = .infinity,
+        options: [String: Any]? = nil
+    ) async throws -> Peripheral {
         try await withCancellableContinuation {
             // Cancelling only stops us waiting, so the pending connection is torn down too
             self.cancelPeripheralConnection(peripheral)
@@ -48,8 +52,14 @@ public extension CentralManager {
     ///
     /// The stream finishes normally when scanning stops or the timeout elapses, and throws
     /// if the manager can no longer scan — Bluetooth being switched off, for instance.
-    // This method doesn't need to be marked async, but it prevents a signature collision
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout timeoutInterval: TimeInterval? = nil, options: [String: Any]? = nil) async -> AsyncThrowingStream<Peripheral, Error> {
+    ///
+    /// - Note: This method doesn't need to be marked `async`, but it prevents a signature
+    ///   collision with the callback-based overload.
+    func scanForPeripherals(
+        withServices services: [CBUUID]? = nil,
+        timeout timeoutInterval: TimeInterval? = nil,
+        options: [String: Any]? = nil
+    ) async -> AsyncThrowingStream<Peripheral, Error> {
         .init { cont in
             var timeout: DispatchTimeout?
             let subscription = eventSubscriptions.queue { event, done in

@@ -98,12 +98,22 @@ internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDe
         }
     }
 
-    func centralManager(_ central: CBCentralManager, didDiscover peripheral: CBPeripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) {
+    func centralManager(
+        _ central: CBCentralManager,
+        didDiscover peripheral: CBPeripheral,
+        advertisementData: [String: Any],
+        rssi RSSI: NSNumber
+    ) {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
         peripheral.updateDiscovery(.init(rssi: RSSI, advertisementData: advertisementData))
 
-        parent.delegate?.centralManager(parent, didDiscover: peripheral, advertisementData: advertisementData, rssi: RSSI)
+        parent.delegate?.centralManager(
+            parent,
+            didDiscover: peripheral,
+            advertisementData: advertisementData,
+            rssi: RSSI
+        )
 
         let transfer = UncheckedTransfer(advertisementData)
 
@@ -132,10 +142,12 @@ internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDe
         let peripherals = (dict[CBCentralManagerRestoredStatePeripheralsKey] as? [CBPeripheral] ?? [])
             .map(parent.peripheral(_:))
 
-        let state = CentralManagerRestoredState(peripherals: peripherals,
-                                                scanServices: dict[CBCentralManagerRestoredStateScanServicesKey] as? [CBUUID],
-                                                scanOptions: dict[CBCentralManagerRestoredStateScanOptionsKey] as? [String: Any],
-                                                dictionary: dict)
+        let state = CentralManagerRestoredState(
+            peripherals: peripherals,
+            scanServices: dict[CBCentralManagerRestoredStateScanServicesKey] as? [CBUUID],
+            scanOptions: dict[CBCentralManagerRestoredStateScanOptionsKey] as? [String: Any],
+            dictionary: dict
+        )
 
         // Stored before the delegate hears about it, so a delegate that reads
         // `restoredState` from any later callback always sees the final value.
@@ -150,7 +162,11 @@ internal final class CentralManagerDelegateWrapper: NSObject, CBCentralManagerDe
     }
 
     #if os(iOS)
-    func centralManager(_ central: CBCentralManager, connectionEventDidOccur event: CBConnectionEvent, for peripheral: CBPeripheral) {
+    func centralManager(
+        _ central: CBCentralManager,
+        connectionEventDidOccur event: CBConnectionEvent,
+        for peripheral: CBPeripheral
+    ) {
         guard let parent = parent else { return }
         let peripheral = parent.peripheral(peripheral)
 

@@ -25,8 +25,17 @@ public protocol CentralManagerDelegate: AnyObject {
     /// Not called for a peripheral this manager isn't tracking — an outcome for a peripheral
     /// it was never told about is dropped rather than adopted.
     func centralManager(_ central: CentralManager, didFailToConnect peripheral: Peripheral, error: Error?)
-    func centralManager(_ central: CentralManager, connectionEventDidOccur event: CBConnectionEvent, for peripheral: Peripheral)
-    func centralManager(_ central: CentralManager, didDiscover peripheral: Peripheral, advertisementData: [String: Any], rssi RSSI: NSNumber)
+    func centralManager(
+        _ central: CentralManager,
+        connectionEventDidOccur event: CBConnectionEvent,
+        for peripheral: Peripheral
+    )
+    func centralManager(
+        _ central: CentralManager,
+        didDiscover peripheral: Peripheral,
+        advertisementData: [String: Any],
+        rssi RSSI: NSNumber
+    )
     /// Called when this manager is being restored from a previous launch of the app.
     ///
     /// Only for a manager created with a ``CentralManager/restoreIdentifier``. This is the
@@ -52,8 +61,17 @@ public extension CentralManagerDelegate {
     func centralManager(_ central: CentralManager, didConnect peripheral: Peripheral) { }
     func centralManager(_ central: CentralManager, didDisconnectPeripheral peripheral: Peripheral, error: Error?) { }
     func centralManager(_ central: CentralManager, didFailToConnect peripheral: Peripheral, error: Error?) { }
-    func centralManager(_ central: CentralManager, connectionEventDidOccur event: CBConnectionEvent, for peripheral: Peripheral) { }
-    func centralManager(_ central: CentralManager, didDiscover peripheral: Peripheral, advertisementData: [String: Any], rssi RSSI: NSNumber) { }
+    func centralManager(
+        _ central: CentralManager,
+        connectionEventDidOccur event: CBConnectionEvent,
+        for peripheral: Peripheral
+    ) { }
+    func centralManager(
+        _ central: CentralManager,
+        didDiscover peripheral: Peripheral,
+        advertisementData: [String: Any],
+        rssi RSSI: NSNumber
+    ) { }
     func centralManager(_ central: CentralManager, willRestore state: CentralManagerRestoredState) { }
     func centralManager(_ central: CentralManager, willRestoreState dict: [String: Any]) { }
     func centralManager(_ central: CentralManager, didUpdateANCSAuthorizationFor peripheral: Peripheral) { }

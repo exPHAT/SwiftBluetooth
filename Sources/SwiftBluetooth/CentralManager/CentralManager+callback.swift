@@ -15,7 +15,11 @@ public extension CentralManager {
     ///   - timeoutInterval: How long to wait before giving up. Waits indefinitely by default.
     ///   - completionHandler: Called once the state is reached, or with the reason it wasn't.
     @discardableResult
-    func wait(for state: CBManagerState, timeout timeoutInterval: TimeInterval = .infinity, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func wait(
+        for state: CBManagerState,
+        timeout timeoutInterval: TimeInterval = .infinity,
+        completionHandler: @escaping (Result<Void, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -65,7 +69,10 @@ public extension CentralManager {
     }
 
     /// The outcome of arriving at `state` while waiting for `wanted`, or `nil` to keep waiting.
-    private static func result(reaching state: CBManagerState, whileWaitingFor wanted: CBManagerState) -> Result<Void, Error>? {
+    private static func result(
+        reaching state: CBManagerState,
+        whileWaitingFor wanted: CBManagerState
+    ) -> Result<Void, Error>? {
         guard state != wanted else { return .success(Void()) }
 
         switch state {
@@ -88,7 +95,12 @@ public extension CentralManager {
     /// call that has thrown `CancellationError` must not be followed by a connection nobody
     /// is waiting for.
     @discardableResult
-    func connect(_ peripheral: Peripheral, timeout timeoutInterval: TimeInterval = .infinity, options: [String: Any]? = nil, completionHandler: @escaping (Result<Peripheral, Error>) -> Void) -> CancellableTask {
+    func connect(
+        _ peripheral: Peripheral,
+        timeout timeoutInterval: TimeInterval = .infinity,
+        options: [String: Any]? = nil,
+        completionHandler: @escaping (Result<Peripheral, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
         let options = UncheckedTransfer(options)
@@ -106,21 +118,7 @@ public extension CentralManager {
 
             var timeout: DispatchTimeout?
             let task = eventSubscriptions.queue { event, done in
-                let result: Result<Peripheral, Error>
-
-                switch event {
-                case .connected(let connected):
-                    guard connected == peripheral else { return }
-                    result = .success(peripheral)
-                case .disconnected(let disconnected, let error):
-                    guard disconnected == peripheral else { return }
-                    result = .failure(error ?? CentralManagerError.unknown)
-                case .failToConnect(let failed, let error):
-                    guard failed == peripheral else { return }
-                    result = .failure(error ?? CentralManagerError.unknown)
-                default:
-                    return
-                }
+                guard let result = Self.connectionResult(from: event, for: peripheral) else { return }
 
                 timeout?.cancel()
                 completionHandler(result)
@@ -149,12 +147,34 @@ public extension CentralManager {
         return handle
     }
 
+    /// The outcome of a connection attempt to `peripheral` that `event` settles, if any.
+    private static func connectionResult(
+        from event: CentralManagerEvent,
+        for peripheral: Peripheral
+    ) -> Result<Peripheral, Error>? {
+        switch event {
+        case .connected(let connected) where connected == peripheral:
+            return .success(peripheral)
+        case .disconnected(let disconnected, let error) where disconnected == peripheral:
+            return .failure(error ?? CentralManagerError.unknown)
+        case .failToConnect(let failed, let error) where failed == peripheral:
+            return .failure(error ?? CentralManagerError.unknown)
+        default:
+            return nil
+        }
+    }
+
     /// Scans for peripherals, calling `onPeripheralFound` for each advertisement received.
     ///
     /// Only one scan can be in progress at a time. Starting another scan, or calling
     /// ``stopScan()``, ends every scan currently running.
     @discardableResult
-    func scanForPeripherals(withServices services: [CBUUID]? = nil, timeout timeoutInterval: TimeInterval? = nil, options: [String: Any]? = nil, onPeripheralFound: @escaping (Peripheral) -> Void) -> CancellableTask {
+    func scanForPeripherals(
+        withServices services: [CBUUID]? = nil,
+        timeout timeoutInterval: TimeInterval? = nil,
+        options: [String: Any]? = nil,
+        onPeripheralFound: @escaping (Peripheral) -> Void
+    ) -> CancellableTask {
         eventQueue.safeSync {
             var timeout: DispatchTimeout?
             let subscription = eventSubscriptions.queue { event, done in
@@ -185,7 +205,10 @@ public extension CentralManager {
     }
 
     @discardableResult
-    func cancelPeripheralConnection(_ peripheral: Peripheral, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func cancelPeripheralConnection(
+        _ peripheral: Peripheral,
+        completionHandler: @escaping (Result<Void, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 

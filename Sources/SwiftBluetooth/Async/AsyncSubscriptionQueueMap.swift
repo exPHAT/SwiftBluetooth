@@ -19,7 +19,11 @@ internal final class AsyncSubscriptionQueueMap<Key, Value>: @unchecked Sendable 
     }
 
     @discardableResult
-    func queue(key: Key, block: @escaping (Value, () -> Void) -> Void, completion: (() -> Void)? = nil) -> AsyncSubscription<Value> {
+    func queue(
+        key: Key,
+        block: @escaping (Value, () -> Void) -> Void,
+        completion: (() -> Void)? = nil
+    ) -> AsyncSubscription<Value> {
         lock.lock()
         let queue: AsyncSubscriptionQueue<Value>
         if let existing = items[key] {

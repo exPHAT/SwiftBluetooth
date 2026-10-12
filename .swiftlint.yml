@@ -1,0 +1,13 @@
+excluded:
+  - .build
+  - Tests
+  # Mirrors CoreBluetooth's own constant names, which the identifier rules reject
+  - Sources/SwiftBluetoothMock
+
+nesting:
+  # `Peripheral.DiscoveryInfo.AdvertisementData` is public API and can't be flattened
+  type_level: 2
+
+file_length:
+  warning: 500
+  ignore_comment_only_lines: true

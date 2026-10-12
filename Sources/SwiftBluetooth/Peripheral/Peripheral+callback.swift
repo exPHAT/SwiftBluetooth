@@ -3,7 +3,10 @@ import Foundation
 
 public extension Peripheral {
     @discardableResult
-    func readValue(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Data, Error>) -> Void) -> CancellableTask {
+    func readValue(
+        for characteristic: CBCharacteristic,
+        completionHandler: @escaping (Result<Data, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -45,7 +48,10 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func readValue(for characteristic: Characteristic, completionHandler: @escaping (Result<Data, Error>) -> Void) -> CancellableTask {
+    func readValue(
+        for characteristic: Characteristic,
+        completionHandler: @escaping (Result<Data, Error>) -> Void
+    ) -> CancellableTask {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
             completionHandler(.failure(PeripheralError.characteristicNotFound))
             return DeferredCancellableTask()
@@ -55,7 +61,10 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func readValue(for descriptor: CBDescriptor, completionHandler: @escaping (Result<Any?, Error>) -> Void) -> CancellableTask {
+    func readValue(
+        for descriptor: CBDescriptor,
+        completionHandler: @escaping (Result<Any?, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -109,7 +118,7 @@ public extension Peripheral {
 
                 guard case .updateNotificationState(let foundCharacteristic, let error) = event,
                       foundCharacteristic.uuid == characteristic.uuid,
-                      (!foundCharacteristic.isNotifying || error != nil) else { return }
+                      !foundCharacteristic.isNotifying || error != nil else { return }
 
                 done()
             } completion: {
@@ -147,7 +156,12 @@ public extension Peripheral {
     /// write completes once it has been handed to CoreBluetooth, waiting first if the peripheral
     /// isn't ready to accept one — writing regardless is how these get dropped without a trace.
     @discardableResult
-    func writeValue(_ data: Data, for characteristic: CBCharacteristic, type: CBCharacteristicWriteType, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func writeValue(
+        _ data: Data,
+        for characteristic: CBCharacteristic,
+        type: CBCharacteristicWriteType,
+        completionHandler: @escaping (Result<Void, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -197,7 +211,12 @@ public extension Peripheral {
     ///
     /// CoreBluetooth discards these when its buffer is full, so sending without checking
     /// loses the write silently.
-    private func writeWithoutResponse(_ data: Data, for characteristic: CBCharacteristic, handle: DeferredCancellableTask, completionHandler: SingleUseHandler<Void>) {
+    private func writeWithoutResponse(
+        _ data: Data,
+        for characteristic: CBCharacteristic,
+        handle: DeferredCancellableTask,
+        completionHandler: SingleUseHandler<Void>
+    ) {
         guard !cbPeripheral.canSendWriteWithoutResponse else {
             writeValue(data, for: characteristic, type: .withoutResponse)
             completionHandler(.success(()))
@@ -220,7 +239,11 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func writeValue(_ data: Data, for descriptor: CBDescriptor, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func writeValue(
+        _ data: Data,
+        for descriptor: CBDescriptor,
+        completionHandler: @escaping (Result<Void, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -262,7 +285,10 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func discoverServices(_ serviceUUIDs: [CBUUID]? = nil, completionHandler: @escaping (Result<[CBService], Error>) -> Void) -> CancellableTask {
+    func discoverServices(
+        _ serviceUUIDs: [CBUUID]? = nil,
+        completionHandler: @escaping (Result<[CBService], Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -302,7 +328,11 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func discoverCharacteristics(_ characteristicUUIDs: [CBUUID]? = nil, for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) -> CancellableTask {
+    func discoverCharacteristics(
+        _ characteristicUUIDs: [CBUUID]? = nil,
+        for service: CBService,
+        completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -343,7 +373,10 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func discoverDescriptors(for characteristic: CBCharacteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) -> CancellableTask {
+    func discoverDescriptors(
+        for characteristic: CBCharacteristic,
+        completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -384,12 +417,19 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func discoverCharacteristics(_ characteristics: [Characteristic], for service: CBService, completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void) -> CancellableTask {
+    func discoverCharacteristics(
+        _ characteristics: [Characteristic],
+        for service: CBService,
+        completionHandler: @escaping (Result<[CBCharacteristic], Error>) -> Void
+    ) -> CancellableTask {
         discoverCharacteristics(characteristics.map(\.uuid), for: service, completionHandler: completionHandler)
     }
 
     @discardableResult
-    func discoverDescriptors(for characteristic: Characteristic, completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void) -> CancellableTask {
+    func discoverDescriptors(
+        for characteristic: Characteristic,
+        completionHandler: @escaping (Result<[CBDescriptor], Error>) -> Void
+    ) -> CancellableTask {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
             completionHandler(.failure(PeripheralError.characteristicNotFound))
             return DeferredCancellableTask()
@@ -404,7 +444,11 @@ public extension Peripheral {
     /// It can differ from what was asked for, since a value stream started by ``readValues(for:)-(CBCharacteristic)``
     /// keeps notifications on until it ends.
     @discardableResult
-    func setNotifyValue(_ value: Bool, for characteristic: CBCharacteristic, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func setNotifyValue(
+        _ value: Bool,
+        for characteristic: CBCharacteristic,
+        completionHandler: @escaping (Result<Void, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
@@ -460,7 +504,11 @@ public extension Peripheral {
     }
 
     @discardableResult
-    func setNotifyValue(_ value: Bool, for characteristic: Characteristic, completionHandler: @escaping (Result<Void, Error>) -> Void) -> CancellableTask {
+    func setNotifyValue(
+        _ value: Bool,
+        for characteristic: Characteristic,
+        completionHandler: @escaping (Result<Void, Error>) -> Void
+    ) -> CancellableTask {
         guard let mappedCharacteristic = knownCharacteristic(for: characteristic.uuid) else {
             completionHandler(.failure(PeripheralError.characteristicNotFound))
             return DeferredCancellableTask()
@@ -518,7 +566,10 @@ public extension Peripheral {
 
     #if !os(macOS)
     @discardableResult
-    func openL2CAPChannel(_ PSM: CBL2CAPPSM, completionHandler: @escaping (Result<CBL2CAPChannel, Error>) -> Void) -> CancellableTask {
+    func openL2CAPChannel(
+        _ PSM: CBL2CAPPSM,
+        completionHandler: @escaping (Result<CBL2CAPChannel, Error>) -> Void
+    ) -> CancellableTask {
         let handle = DeferredCancellableTask()
         let completionHandler = SingleUseHandler(completionHandler)
 
